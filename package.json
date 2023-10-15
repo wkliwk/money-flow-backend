@@ -1,0 +1,20 @@
+{
+  "name": "money-flow-backend",
+  "version": "1.0.0",
+  "main": "index.js",
+  "repository": "https://github.com/wkliwk/money-flow-backend.git",
+  "author": "rickyli <ricky.li@crypto.com>",
+  "license": "MIT",
+  "dependencies": {
+    "@types/express": "^4.17.19",
+    "@types/mongoose": "^5.11.97",
+    "@types/node": "^20.8.6",
+    "express": "^4.18.2",
+    "mongoose": "^7.6.2",
+    "ts-node": "^10.9.1",
+    "typescript": "^5.2.2"
+  },
+  "scripts": {
+    "start-server": "ts-node ./src/app.ts"
+  }
+}

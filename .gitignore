@@ -1,0 +1,20 @@
+# Dependencies
+node_modules/
+yarn-error.log
+
+# Output of build process
+dist/
+
+# Environment Variables
+.env
+
+# OS-specific files and directories
+.DS_Store
+Thumbs.db
+
+# Yarn Integrity File
+.yarnrc.yml
+
+# Editor-specific files
+.vscode/
+.idea/

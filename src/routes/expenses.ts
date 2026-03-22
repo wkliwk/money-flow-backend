@@ -13,9 +13,9 @@ const expenseValidation = [
 ];
 
 // GET /api/expenses
-router.get('/', async (_req: AuthRequest, res: Response) => {
+router.get('/', async (req: AuthRequest, res: Response) => {
   try {
-    const expenses = await ExpenseModel.find().sort({ createdAt: -1 });
+    const expenses = await ExpenseModel.find({ owner: req.userId }).sort({ date: -1, createdAt: -1 });
     res.json(expenses);
   } catch {
     res.status(500).json({ error: 'Failed to fetch expenses' });
@@ -25,7 +25,7 @@ router.get('/', async (_req: AuthRequest, res: Response) => {
 // GET /api/expenses/:id
 router.get('/:id', async (req: AuthRequest, res: Response) => {
   try {
-    const expense = await ExpenseModel.findById(req.params.id);
+    const expense = await ExpenseModel.findOne({ _id: req.params.id, owner: req.userId });
     if (!expense) {
       res.status(404).json({ error: 'Expense not found' });
       return;
@@ -60,8 +60,8 @@ router.put('/:id', expenseValidation, async (req: AuthRequest, res: Response) =>
     return;
   }
   try {
-    const updated = await ExpenseModel.findByIdAndUpdate(
-      req.params.id,
+    const updated = await ExpenseModel.findOneAndUpdate(
+      { _id: req.params.id, owner: req.userId },
       req.body,
       { new: true, runValidators: true }
     );
@@ -78,7 +78,7 @@ router.put('/:id', expenseValidation, async (req: AuthRequest, res: Response) =>
 // DELETE /api/expenses/:id
 router.delete('/:id', async (req: AuthRequest, res: Response) => {
   try {
-    const deleted = await ExpenseModel.findByIdAndDelete(req.params.id);
+    const deleted = await ExpenseModel.findOneAndDelete({ _id: req.params.id, owner: req.userId });
     if (!deleted) {
       res.status(404).json({ error: 'Expense not found' });
       return;

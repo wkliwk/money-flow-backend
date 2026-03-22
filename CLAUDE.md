@@ -37,8 +37,9 @@ When told to "start working" or similar:
 5. If no Todo items → do genuine product thinking:
    - Read ~/ai-company/docs/PRD-money-flow.md
    - Review current codebase — what exists, what's rough, what's missing
-   - Think from real user perspective: what friction exists? what would make this app meaningfully more useful?
-   - Prioritise by user value, not technical interest
+   - Research market: what do YNAB, Copilot, Monarch Money, 1Money do well? Any creative features worth adapting?
+   - Think from real user perspective: what friction exists day-to-day? what would make this meaningfully more useful?
+   - Prefer ideas that are high user value but simple to build
    - Create GitHub issues with real acceptance criteria, add to project board, start top one
 Never ask "what should I work on?"
 

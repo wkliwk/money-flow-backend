@@ -34,7 +34,12 @@ When told to "start working" or similar:
 2. `gh project item-list 2 --owner wkliwk --format json` → same
 3. Read last 10 lines of /Users/ricky/Dev/decisions.jsonl
 4. Pick highest priority Todo and start immediately
-5. If no Todo items → act as PM+CEO: review product, create new issues, add to board, start top one
+5. If no Todo items → do genuine product thinking:
+   - Read ~/ai-company/docs/PRD-money-flow.md
+   - Review current codebase — what exists, what's rough, what's missing
+   - Think from real user perspective: what friction exists? what would make this app meaningfully more useful?
+   - Prioritise by user value, not technical interest
+   - Create GitHub issues with real acceptance criteria, add to project board, start top one
 Never ask "what should I work on?"
 
 ## Autonomous operation rules

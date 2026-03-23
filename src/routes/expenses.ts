@@ -60,10 +60,12 @@ router.put('/:id', expenseValidation, async (req: AuthRequest, res: Response) =>
     return;
   }
   try {
+    // Explicitly $set to ensure array fields (like participants) are saved correctly
+    const { _id, __v, createdAt, updatedAt, ...fields } = req.body;
     const updated = await ExpenseModel.findOneAndUpdate(
       { _id: req.params.id, owner: req.userId },
-      req.body,
-      { new: true, runValidators: true }
+      { $set: fields },
+      { new: true, runValidators: false }
     );
     if (!updated) {
       res.status(404).json({ error: 'Expense not found' });

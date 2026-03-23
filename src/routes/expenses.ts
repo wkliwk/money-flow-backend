@@ -15,7 +15,7 @@ const expenseValidation = [
 // GET /api/expenses
 router.get('/', async (req: AuthRequest, res: Response) => {
   try {
-    const expenses = await ExpenseModel.find({ owner: req.userId }).sort({ date: -1, createdAt: -1 });
+    const expenses = await ExpenseModel.find({ owner: req.userId }).sort({ date: -1, createdAt: -1 }).lean();
     res.json(expenses);
   } catch {
     res.status(500).json({ error: 'Failed to fetch expenses' });
@@ -25,7 +25,7 @@ router.get('/', async (req: AuthRequest, res: Response) => {
 // GET /api/expenses/:id
 router.get('/:id', async (req: AuthRequest, res: Response) => {
   try {
-    const expense = await ExpenseModel.findOne({ _id: req.params.id, owner: req.userId });
+    const expense = await ExpenseModel.findOne({ _id: req.params.id, owner: req.userId }).lean();
     if (!expense) {
       res.status(404).json({ error: 'Expense not found' });
       return;
@@ -46,7 +46,7 @@ router.post('/', expenseValidation, async (req: AuthRequest, res: Response) => {
   try {
     const expense = new ExpenseModel(req.body);
     const saved = await expense.save();
-    res.status(201).json(saved);
+    res.status(201).json(saved.toObject());
   } catch {
     res.status(400).json({ error: 'Failed to create expense' });
   }
@@ -62,15 +62,17 @@ router.put('/:id', expenseValidation, async (req: AuthRequest, res: Response) =>
   try {
     // Explicitly $set to ensure array fields (like participants) are saved correctly
     const { _id, __v, createdAt, updatedAt, ...fields } = req.body;
-    const updated = await ExpenseModel.findOneAndUpdate(
+    const result = await ExpenseModel.findOneAndUpdate(
       { _id: req.params.id, owner: req.userId },
       { $set: fields },
-      { new: true, runValidators: false }
+      { runValidators: false, strict: false }
     );
-    if (!updated) {
+    if (!result) {
       res.status(404).json({ error: 'Expense not found' });
       return;
     }
+    // Re-fetch with lean() to get the actual stored document including all array fields
+    const updated = await ExpenseModel.findOne({ _id: req.params.id, owner: req.userId }).lean();
     res.json(updated);
   } catch {
     res.status(400).json({ error: 'Failed to update expense' });

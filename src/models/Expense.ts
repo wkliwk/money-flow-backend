@@ -9,6 +9,7 @@ interface IExpense extends Document {
   category?: string;
   item?: string;
   participants?: string[];
+  tags?: string[];
   parent?: string;
   status?: string;
   profit?: number;
@@ -34,6 +35,7 @@ const ExpenseSchema = new mongoose.Schema(
     category: String,
     item: String,
     participants: [String],
+    tags: [String],
     amount: { type: Number, required: true },
   },
   { timestamps: true }

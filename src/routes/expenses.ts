@@ -44,7 +44,9 @@ router.post('/', expenseValidation, async (req: AuthRequest, res: Response) => {
     return;
   }
   try {
-    const expense = new ExpenseModel(req.body);
+    // Ensure participants is always an array (empty if not provided)
+    const { participants = [] } = req.body;
+    const expense = new ExpenseModel({ ...req.body, participants });
     const saved = await expense.save();
     res.status(201).json(saved.toObject());
   } catch {

@@ -13,9 +13,9 @@ const expenseValidation = [
 ];
 
 // GET /api/expenses
-router.get('/', async (_req: AuthRequest, res: Response) => {
+router.get('/', async (req: AuthRequest, res: Response) => {
   try {
-    const expenses = await ExpenseModel.find().sort({ createdAt: -1 });
+    const expenses = await ExpenseModel.find({ owner: req.userId }).sort({ date: -1, createdAt: -1 }).lean();
     res.json(expenses);
   } catch {
     res.status(500).json({ error: 'Failed to fetch expenses' });
@@ -25,7 +25,7 @@ router.get('/', async (_req: AuthRequest, res: Response) => {
 // GET /api/expenses/:id
 router.get('/:id', async (req: AuthRequest, res: Response) => {
   try {
-    const expense = await ExpenseModel.findById(req.params.id);
+    const expense = await ExpenseModel.findOne({ _id: req.params.id, owner: req.userId }).lean();
     if (!expense) {
       res.status(404).json({ error: 'Expense not found' });
       return;
@@ -44,9 +44,11 @@ router.post('/', expenseValidation, async (req: AuthRequest, res: Response) => {
     return;
   }
   try {
-    const expense = new ExpenseModel(req.body);
+    // Ensure participants is always an array (empty if not provided)
+    const { participants = [] } = req.body;
+    const expense = new ExpenseModel({ ...req.body, participants });
     const saved = await expense.save();
-    res.status(201).json(saved);
+    res.status(201).json(saved.toObject());
   } catch {
     res.status(400).json({ error: 'Failed to create expense' });
   }
@@ -60,15 +62,19 @@ router.put('/:id', expenseValidation, async (req: AuthRequest, res: Response) =>
     return;
   }
   try {
-    const updated = await ExpenseModel.findByIdAndUpdate(
-      req.params.id,
-      req.body,
-      { new: true, runValidators: true }
+    // Explicitly $set to ensure array fields (like participants) are saved correctly
+    const { _id, __v, createdAt, updatedAt, ...fields } = req.body;
+    const result = await ExpenseModel.findOneAndUpdate(
+      { _id: req.params.id, owner: req.userId },
+      { $set: fields },
+      { runValidators: false, strict: false }
     );
-    if (!updated) {
+    if (!result) {
       res.status(404).json({ error: 'Expense not found' });
       return;
     }
+    // Re-fetch with lean() to get the actual stored document including all array fields
+    const updated = await ExpenseModel.findOne({ _id: req.params.id, owner: req.userId }).lean();
     res.json(updated);
   } catch {
     res.status(400).json({ error: 'Failed to update expense' });
@@ -78,7 +84,7 @@ router.put('/:id', expenseValidation, async (req: AuthRequest, res: Response) =>
 // DELETE /api/expenses/:id
 router.delete('/:id', async (req: AuthRequest, res: Response) => {
   try {
-    const deleted = await ExpenseModel.findByIdAndDelete(req.params.id);
+    const deleted = await ExpenseModel.findOneAndDelete({ _id: req.params.id, owner: req.userId });
     if (!deleted) {
       res.status(404).json({ error: 'Expense not found' });
       return;

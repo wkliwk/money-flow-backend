@@ -6,11 +6,15 @@ interface IExpense extends Document {
   purpose?: string;
   currentLocation?: string;
   type?: string;
+  category?: string;
+  item?: string;
+  participants?: string[];
   parent?: string;
   status?: string;
   profit?: number;
   startDate?: Date | null;
   endDate?: Date | null;
+  date?: Date;
   amount: number;
 }
 
@@ -26,6 +30,10 @@ const ExpenseSchema = new mongoose.Schema(
     profit: Number,
     startDate: Date,
     endDate: Date,
+    date: { type: Date, default: Date.now },
+    category: String,
+    item: String,
+    participants: { type: [String], default: [] },
     amount: { type: Number, required: true },
   },
   { timestamps: true }

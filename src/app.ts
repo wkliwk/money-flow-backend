@@ -1,9 +1,12 @@
+import './instrument';
+import * as Sentry from '@sentry/node';
 import express, { Request, Response, NextFunction } from 'express';
 import mongoose from 'mongoose';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import authRoutes from './routes/auth';
 import expenseRoutes from './routes/expenses';
+import budgetRoutes from './routes/budgets';
 
 dotenv.config();
 
@@ -23,6 +26,9 @@ app.get('/health', (_req, res) => {
 
 app.use('/auth', authRoutes);
 app.use('/api/expenses', expenseRoutes);
+app.use('/api/budgets', budgetRoutes);
+
+Sentry.setupExpressErrorHandler(app);
 
 // Global error handler
 // eslint-disable-next-line @typescript-eslint/no-unused-vars

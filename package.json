@@ -6,6 +6,7 @@
   "author": "rickyli <ricky.li@crypto.com>",
   "license": "MIT",
   "dependencies": {
+    "@sentry/node": "^10.45.0",
     "@types/bcryptjs": "^2.4.6",
     "@types/cors": "^2.8.14",
     "@types/express": "^4.17.20",

@@ -7,9 +7,28 @@ const router = Router();
 
 router.use(protect);
 
+const participantsValidation = body('participants')
+  .optional()
+  .custom((value) => {
+    if (value === undefined || value === null) return true;
+    if (!Array.isArray(value)) throw new Error('participants must be an array');
+    if (value.length > 20) throw new Error('participants cannot exceed 20 items');
+    const seen = new Set<string>();
+    for (const item of value) {
+      if (typeof item !== 'string') throw new Error('each participant must be a string');
+      if (item.trim() === '') throw new Error('participant names cannot be empty');
+      if (item.length > 100) throw new Error('participant names cannot exceed 100 characters');
+      const lower = item.toLowerCase();
+      if (seen.has(lower)) throw new Error(`duplicate participant: "${item}"`);
+      seen.add(lower);
+    }
+    return true;
+  });
+
 const expenseValidation = [
   body('owner').notEmpty().withMessage('Owner is required'),
   body('amount').isNumeric().withMessage('Amount must be a number'),
+  participantsValidation,
 ];
 
 // GET /api/expenses with pagination

@@ -64,9 +64,12 @@ router.put('/:id', expenseValidation, async (req: AuthRequest, res: Response) =>
   try {
     // Explicitly $set to ensure array fields (like participants) are saved correctly
     const { _id, __v, createdAt, updatedAt, ...fields } = req.body;
+    // Ensure participants is always an array (empty if not provided)
+    const { participants = [] } = fields;
+    const updateFields = { ...fields, participants };
     const result = await ExpenseModel.findOneAndUpdate(
       { _id: req.params.id, owner: req.userId },
-      { $set: fields },
+      { $set: updateFields },
       { runValidators: false, strict: false }
     );
     if (!result) {

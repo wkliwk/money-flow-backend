@@ -1,5 +1,6 @@
 import { Router, Response } from 'express';
 import { body, validationResult } from 'express-validator';
+import mongoose from 'mongoose';
 import ExpenseModel from '../models/Expense';
 import { protect, AuthRequest } from '../middleware/auth';
 
@@ -7,8 +8,28 @@ const router = Router();
 
 router.use(protect);
 
+type ExpensePayload = Record<string, unknown> & {
+  participants?: string[];
+  with?: string[] | string;
+};
+
+const normalizeExpenseInput = (payload: ExpensePayload): ExpensePayload => {
+  const normalized = { ...payload };
+  const withValue = normalized.with;
+  if ((!Array.isArray(normalized.participants) || normalized.participants.length === 0) && withValue !== undefined) {
+    normalized.participants = Array.isArray(withValue) ? withValue : [withValue];
+  }
+  delete normalized.with;
+  return normalized;
+};
+
+const toExpenseResponse = (expense: Record<string, unknown> | null) => {
+  if (!expense) return expense;
+  const participants = Array.isArray(expense.participants) ? expense.participants : [];
+  return { ...expense, with: participants };
+};
+
 const expenseValidation = [
-  body('owner').notEmpty().withMessage('Owner is required'),
   body('amount').isNumeric().withMessage('Amount must be a number'),
 ];
 
@@ -16,7 +37,7 @@ const expenseValidation = [
 router.get('/', async (req: AuthRequest, res: Response) => {
   try {
     const expenses = await ExpenseModel.find({ owner: req.userId }).sort({ date: -1, createdAt: -1 }).lean();
-    res.json(expenses);
+    res.json(expenses.map((expense) => toExpenseResponse(expense)));
   } catch {
     res.status(500).json({ error: 'Failed to fetch expenses' });
   }
@@ -30,7 +51,7 @@ router.get('/:id', async (req: AuthRequest, res: Response) => {
       res.status(404).json({ error: 'Expense not found' });
       return;
     }
-    res.json(expense);
+    res.json(toExpenseResponse(expense));
   } catch {
     res.status(500).json({ error: 'Failed to fetch expense' });
   }
@@ -44,9 +65,10 @@ router.post('/', expenseValidation, async (req: AuthRequest, res: Response) => {
     return;
   }
   try {
-    const expense = new ExpenseModel(req.body);
+    const payload = { ...normalizeExpenseInput(req.body as ExpensePayload), owner: req.userId };
+    const expense = new ExpenseModel(payload);
     const saved = await expense.save();
-    res.status(201).json(saved.toObject());
+    res.status(201).json(toExpenseResponse(saved.toObject()));
   } catch {
     res.status(400).json({ error: 'Failed to create expense' });
   }
@@ -61,7 +83,8 @@ router.put('/:id', expenseValidation, async (req: AuthRequest, res: Response) =>
   }
   try {
     // Explicitly $set to ensure array fields (like participants) are saved correctly
-    const { _id, __v, createdAt, updatedAt, ...fields } = req.body;
+    const normalizedBody = normalizeExpenseInput(req.body as ExpensePayload);
+    const { _id, __v, createdAt, updatedAt, owner: _owner, ...fields } = normalizedBody;
     const result = await ExpenseModel.findOneAndUpdate(
       { _id: req.params.id, owner: req.userId },
       { $set: fields },
@@ -73,7 +96,7 @@ router.put('/:id', expenseValidation, async (req: AuthRequest, res: Response) =>
     }
     // Re-fetch with lean() to get the actual stored document including all array fields
     const updated = await ExpenseModel.findOne({ _id: req.params.id, owner: req.userId }).lean();
-    res.json(updated);
+    res.json(toExpenseResponse(updated));
   } catch {
     res.status(400).json({ error: 'Failed to update expense' });
   }
@@ -88,7 +111,11 @@ router.delete('/:id', async (req: AuthRequest, res: Response) => {
       return;
     }
     res.json({ message: 'Deleted' });
-  } catch {
+  } catch (err) {
+    if (err instanceof mongoose.Error.CastError) {
+      res.status(400).json({ error: 'Invalid expense ID' });
+      return;
+    }
     res.status(500).json({ error: 'Failed to delete expense' });
   }
 });

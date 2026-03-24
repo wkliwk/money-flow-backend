@@ -12,11 +12,24 @@ const expenseValidation = [
   body('amount').isNumeric().withMessage('Amount must be a number'),
 ];
 
-// GET /api/expenses
+// GET /api/expenses with pagination
 router.get('/', async (req: AuthRequest, res: Response) => {
   try {
-    const expenses = await ExpenseModel.find({ owner: req.userId }).sort({ date: -1, createdAt: -1 }).lean();
-    res.json(expenses);
+    const page = Math.max(1, parseInt(req.query.page as string) || 1);
+    const limit = Math.min(100, Math.max(1, parseInt(req.query.limit as string) || 20));
+    const skip = (page - 1) * limit;
+
+    const [expenses, total] = await Promise.all([
+      ExpenseModel.find({ owner: req.userId })
+        .sort({ date: -1, createdAt: -1 })
+        .skip(skip)
+        .limit(limit)
+        .lean(),
+      ExpenseModel.countDocuments({ owner: req.userId }),
+    ]);
+
+    const pages = Math.ceil(total / limit);
+    res.json({ data: expenses, total, page, pages });
   } catch {
     res.status(500).json({ error: 'Failed to fetch expenses' });
   }

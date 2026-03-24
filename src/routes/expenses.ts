@@ -44,11 +44,15 @@ router.post('/', expenseValidation, async (req: AuthRequest, res: Response) => {
     return;
   }
   try {
-    // Ensure participants is always an array (empty if not provided)
-    const { participants = [] } = req.body;
-    const expense = new ExpenseModel({ ...req.body, participants });
+    const expenseData = req.body;
+    // Explicitly set participants if not provided
+    if (!expenseData.participants || !Array.isArray(expenseData.participants)) {
+      expenseData.participants = [];
+    }
+    const expense = new ExpenseModel(expenseData);
     const saved = await expense.save();
-    res.status(201).json(saved.toObject());
+    const result = saved.toObject();
+    res.status(201).json(result);
   } catch {
     res.status(400).json({ error: 'Failed to create expense' });
   }
@@ -62,21 +66,22 @@ router.put('/:id', expenseValidation, async (req: AuthRequest, res: Response) =>
     return;
   }
   try {
-    // Explicitly $set to ensure array fields (like participants) are saved correctly
-    const { _id, __v, createdAt, updatedAt, ...fields } = req.body;
+    // Extract fields excluding system fields
+    const { _id, __v, createdAt, updatedAt, ...updateData } = req.body;
     // Ensure participants is always an array (empty if not provided)
-    const { participants = [] } = fields;
-    const updateFields = { ...fields, participants };
+    if (!updateData.participants || !Array.isArray(updateData.participants)) {
+      updateData.participants = [];
+    }
     const result = await ExpenseModel.findOneAndUpdate(
       { _id: req.params.id, owner: req.userId },
-      { $set: updateFields },
+      { $set: updateData },
       { runValidators: false, strict: false }
     );
     if (!result) {
       res.status(404).json({ error: 'Expense not found' });
       return;
     }
-    // Re-fetch with lean() to get the actual stored document including all array fields
+    // Re-fetch to get the actual stored document including all fields
     const updated = await ExpenseModel.findOne({ _id: req.params.id, owner: req.userId }).lean();
     res.json(updated);
   } catch {

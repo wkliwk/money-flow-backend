@@ -33,7 +33,7 @@ const ExpenseSchema = new mongoose.Schema(
     date: { type: Date, default: Date.now },
     category: String,
     item: String,
-    participants: { type: [String], default: [] },
+    participants: [String],
     amount: { type: Number, required: true },
   },
   { timestamps: true }

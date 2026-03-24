@@ -66,4 +66,60 @@ router.get('/csv', async (req: AuthRequest, res) => {
   }
 });
 
+// GET /api/export/json
+router.get('/json', async (req: AuthRequest, res) => {
+  try {
+    const { from, to, type } = req.query;
+
+    // Build filter
+    const filter: any = { owner: req.userId };
+    if (from || to) {
+      filter.date = {};
+      if (from) filter.date.$gte = new Date(from as string);
+      if (to) {
+        const toDate = new Date(to as string);
+        toDate.setHours(23, 59, 59, 999);
+        filter.date.$lte = toDate;
+      }
+    }
+    if (type) filter.type = type;
+
+    // Fetch expenses
+    const expenses = await ExpenseModel.find(filter)
+      .sort({ date: -1 })
+      .lean();
+
+    // Build JSON with metadata
+    const data = {
+      metadata: {
+        exportDate: new Date().toISOString(),
+        transactionCount: expenses.length,
+        dateRange: {
+          from: from || null,
+          to: to || null,
+        },
+      },
+      transactions: expenses.map((e: any) => ({
+        _id: e._id,
+        description: e.description,
+        amount: e.amount,
+        type: e.type,
+        category: e.category,
+        date: e.date,
+        participants: e.participants || [],
+        createdAt: e.createdAt,
+        updatedAt: e.updatedAt,
+      })),
+    };
+
+    // Return JSON file
+    const filename = `money-flow-${new Date().toISOString().split('T')[0]}.json`;
+    res.setHeader('Content-Type', 'application/json');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    res.send(JSON.stringify(data, null, 2));
+  } catch {
+    res.status(500).json({ error: 'Failed to export JSON' });
+  }
+});
+
 export default router;

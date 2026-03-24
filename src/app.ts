@@ -9,6 +9,7 @@ import expenseRoutes from './routes/expenses';
 import budgetRoutes from './routes/budgets';
 import netWorthRoutes from './routes/net-worth';
 import exportRoutes from './routes/export';
+import importRoutes from './routes/import';
 
 dotenv.config();
 
@@ -31,6 +32,7 @@ app.use('/api/expenses', expenseRoutes);
 app.use('/api/budgets', budgetRoutes);
 app.use('/api/net-worth', netWorthRoutes);
 app.use('/api/export', exportRoutes);
+app.use('/api/import', importRoutes);
 
 Sentry.setupExpressErrorHandler(app);
 

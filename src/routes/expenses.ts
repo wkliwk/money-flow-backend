@@ -26,7 +26,6 @@ const participantsValidation = body('participants')
   });
 
 const expenseValidation = [
-  body('owner').notEmpty().withMessage('Owner is required'),
   body('amount').isNumeric().withMessage('Amount must be a number'),
   participantsValidation,
 ];
@@ -76,12 +75,14 @@ router.post('/', expenseValidation, async (req: AuthRequest, res: Response) => {
     return;
   }
   try {
-    const expenseData = req.body;
-    // Explicitly set participants if not provided
-    if (!expenseData.participants || !Array.isArray(expenseData.participants)) {
-      expenseData.participants = [];
-    }
-    const expense = new ExpenseModel(expenseData);
+    const { description, amount, type, category, date, notes, participants, isRecurring, recurringFrequency } = req.body;
+    const expense = new ExpenseModel({
+      owner: req.userId,
+      description, amount, type, category, date, notes,
+      participants: Array.isArray(participants) ? participants : [],
+      ...(isRecurring !== undefined && { isRecurring }),
+      ...(recurringFrequency !== undefined && { recurringFrequency }),
+    });
     const saved = await expense.save();
     const result = saved.toObject();
     res.status(201).json(result);
@@ -98,16 +99,15 @@ router.put('/:id', expenseValidation, async (req: AuthRequest, res: Response) =>
     return;
   }
   try {
-    // Extract fields excluding system fields
-    const { _id, __v, createdAt, updatedAt, ...updateData } = req.body;
-    // Ensure participants is always an array (empty if not provided)
-    if (!updateData.participants || !Array.isArray(updateData.participants)) {
-      updateData.participants = [];
-    }
+    const { description, amount, type, category, date, notes, participants, isRecurring, recurringFrequency } = req.body;
+    const updateData: Record<string, unknown> = { description, amount, type, category, date, notes };
+    if (Array.isArray(participants)) updateData.participants = participants; else updateData.participants = [];
+    if (isRecurring !== undefined) updateData.isRecurring = isRecurring;
+    if (recurringFrequency !== undefined) updateData.recurringFrequency = recurringFrequency;
     const result = await ExpenseModel.findOneAndUpdate(
       { _id: req.params.id, owner: req.userId },
       { $set: updateData },
-      { runValidators: false, strict: false }
+      { new: false, runValidators: true, strict: true }
     );
     if (!result) {
       res.status(404).json({ error: 'Expense not found' });

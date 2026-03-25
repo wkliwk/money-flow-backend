@@ -9,6 +9,7 @@ import expenseRoutes from './routes/expenses';
 import budgetRoutes from './routes/budgets';
 import netWorthRoutes from './routes/net-worth';
 import exportRoutes from './routes/export';
+import importRoutes from './routes/import';
 
 dotenv.config();
 
@@ -31,6 +32,7 @@ app.use('/api/expenses', expenseRoutes);
 app.use('/api/budgets', budgetRoutes);
 app.use('/api/net-worth', netWorthRoutes);
 app.use('/api/export', exportRoutes);
+app.use('/api/import', importRoutes);
 
 Sentry.setupExpressErrorHandler(app);
 
@@ -41,17 +43,20 @@ app.use((err: Error, _req: Request, res: Response, _next: NextFunction) => {
   res.status(500).json({ error: 'Internal server error' });
 });
 
-mongoose
-  .connect(MONGODB_URI)
-  .then(() => {
-    console.log('Connected to MongoDB');
-    app.listen(PORT, () => {
-      console.log(`Server running on port ${PORT}`);
+// Only connect and start server when not in test environment
+if (process.env.NODE_ENV !== 'test') {
+  mongoose
+    .connect(MONGODB_URI)
+    .then(() => {
+      console.log('Connected to MongoDB');
+      app.listen(PORT, () => {
+        console.log(`Server running on port ${PORT}`);
+      });
+    })
+    .catch((err) => {
+      console.error('MongoDB connection error:', err);
+      process.exit(1);
     });
-  })
-  .catch((err) => {
-    console.error('MongoDB connection error:', err);
-    process.exit(1);
-  });
+}
 
 export default app;

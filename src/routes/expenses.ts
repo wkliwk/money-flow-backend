@@ -101,7 +101,7 @@ router.put('/:id', expenseValidation, async (req: AuthRequest, res: Response) =>
   try {
     const { description, amount, type, category, date, notes, participants, isRecurring, recurringFrequency } = req.body;
     const updateData: Record<string, unknown> = { description, amount, type, category, date, notes };
-    if (Array.isArray(participants)) updateData.participants = participants; else updateData.participants = [];
+    if (Array.isArray(participants)) updateData.participants = participants;
     if (isRecurring !== undefined) updateData.isRecurring = isRecurring;
     if (recurringFrequency !== undefined) updateData.recurringFrequency = recurringFrequency;
     const result = await ExpenseModel.findOneAndUpdate(

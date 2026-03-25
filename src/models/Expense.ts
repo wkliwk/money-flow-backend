@@ -3,38 +3,28 @@ import mongoose, { Document } from 'mongoose';
 interface IExpense extends Document {
   owner: string;
   description?: string;
-  purpose?: string;
-  currentLocation?: string;
+  amount: number;
   type?: string;
   category?: string;
-  item?: string;
-  participants?: string[];
-  parent?: string;
-  status?: string;
-  profit?: number;
-  startDate?: Date | null;
-  endDate?: Date | null;
   date?: Date;
-  amount: number;
+  notes?: string;
+  participants?: string[];
+  isRecurring?: boolean;
+  recurringFrequency?: string;
 }
 
 const ExpenseSchema = new mongoose.Schema(
   {
     owner: { type: String, required: true },
     description: String,
-    purpose: String,
-    currentLocation: String,
     type: String,
-    parent: String,
-    status: String,
-    profit: Number,
-    startDate: Date,
-    endDate: Date,
-    date: { type: Date, default: Date.now },
     category: String,
-    item: String,
+    date: { type: Date, default: Date.now },
+    notes: String,
     participants: [String],
     amount: { type: Number, required: true },
+    isRecurring: Boolean,
+    recurringFrequency: String,
   },
   { timestamps: true }
 );

@@ -1,6 +1,6 @@
-import mongoose from 'mongoose';
+import mongoose, { Document } from 'mongoose';
 
-interface INetWorthSnapshot {
+interface INetWorthSnapshot extends Document {
   userId: string;
   date: Date;
   assets: {
@@ -14,7 +14,7 @@ interface INetWorthSnapshot {
     creditCardDebt?: number;
     other?: number;
   };
-  netWorth?: number; // calculated: sum(assets) - sum(liabilities)
+  netWorth: number;
 }
 
 const NetWorthSchema = new mongoose.Schema(
@@ -32,12 +32,13 @@ const NetWorthSchema = new mongoose.Schema(
       creditCardDebt: { type: Number, default: 0 },
       other: { type: Number, default: 0 },
     },
+    netWorth: { type: Number, default: 0 },
   },
   { timestamps: true }
 );
 
 // Calculate netWorth before saving
-NetWorthSchema.pre('save', function () {
+NetWorthSchema.pre('save', function (this: INetWorthSnapshot) {
   const totalAssets =
     (this.assets?.cash || 0) +
     (this.assets?.investments || 0) +
@@ -49,7 +50,7 @@ NetWorthSchema.pre('save', function () {
     (this.liabilities?.creditCardDebt || 0) +
     (this.liabilities?.other || 0);
 
-  (this as any).netWorth = totalAssets - totalLiabilities;
+  this.netWorth = totalAssets - totalLiabilities;
 });
 
 export const NetWorthModel = mongoose.model<INetWorthSnapshot>('NetWorth', NetWorthSchema);

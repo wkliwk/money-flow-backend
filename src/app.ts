@@ -20,8 +20,19 @@ app.use(cors({
 }));
 app.use(express.json());
 
-app.get('/health', (_req, res) => {
-  res.json({ status: 'ok' });
+app.get('/health', async (_req, res) => {
+  try {
+    const state = mongoose.connection.readyState;
+    if (state === 1) {
+      // Check if we can ping the database
+      await mongoose.connection.db?.admin().ping();
+      res.json({ status: 'ok', database: 'connected' });
+    } else {
+      res.status(503).json({ status: 'degraded', database: 'disconnected' });
+    }
+  } catch (err) {
+    res.status(503).json({ status: 'error', database: 'unreachable' });
+  }
 });
 
 app.use('/auth', authRoutes);
@@ -37,17 +48,38 @@ app.use((err: Error, _req: Request, res: Response, _next: NextFunction) => {
   res.status(500).json({ error: 'Internal server error' });
 });
 
-mongoose
-  .connect(MONGODB_URI)
-  .then(() => {
-    console.log('Connected to MongoDB');
-    app.listen(PORT, () => {
-      console.log(`Server running on port ${PORT}`);
+// Exponential backoff retry logic
+const connectWithRetry = (attempt = 1) => {
+  const maxAttempts = 5;
+  const baseDelay = 1000; // 1 second
+
+  mongoose
+    .connect(MONGODB_URI, {
+      connectTimeoutMS: 10000,
+      serverSelectionTimeoutMS: 10000,
+      minPoolSize: 5,
+      maxPoolSize: 10,
+      retryWrites: true,
+      w: 'majority',
+    })
+    .then(() => {
+      console.log('Connected to MongoDB');
+      app.listen(PORT, () => {
+        console.log(`Server running on port ${PORT}`);
+      });
+    })
+    .catch((err) => {
+      if (attempt < maxAttempts) {
+        const delay = baseDelay * Math.pow(2, attempt - 1);
+        console.warn(`MongoDB connection failed (attempt ${attempt}/${maxAttempts}), retrying in ${delay}ms...`, err.message);
+        setTimeout(() => connectWithRetry(attempt + 1), delay);
+      } else {
+        console.error('MongoDB connection failed after max retries:', err);
+        process.exit(1);
+      }
     });
-  })
-  .catch((err) => {
-    console.error('MongoDB connection error:', err);
-    process.exit(1);
-  });
+};
+
+connectWithRetry();
 
 export default app;

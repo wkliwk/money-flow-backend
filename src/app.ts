@@ -1,9 +1,9 @@
 import './instrument';
 import * as Sentry from '@sentry/node';
 import express, { Request, Response, NextFunction } from 'express';
-import mongoose from 'mongoose';
 import cors from 'cors';
 import dotenv from 'dotenv';
+import { connectWithRetry, getHealthStatus } from './db';
 import authRoutes from './routes/auth';
 import expenseRoutes from './routes/expenses';
 import budgetRoutes from './routes/budgets';
@@ -31,6 +31,12 @@ app.get('/health', (_req, res) => {
   res.json({ status: 'ok' });
 });
 
+app.get('/api/health', async (_req, res) => {
+  const health = await getHealthStatus();
+  const statusCode = health.status === 'healthy' ? 200 : 503;
+  res.status(statusCode).json(health);
+});
+
 app.use('/auth', authRoutes);
 app.use('/api/expenses', expenseRoutes);
 app.use('/api/budgets', budgetRoutes);
@@ -51,8 +57,7 @@ app.use((err: Error, _req: Request, res: Response, _next: NextFunction) => {
 
 // Only connect and start server when not in test environment
 if (process.env.NODE_ENV !== 'test') {
-  mongoose
-    .connect(MONGODB_URI)
+  connectWithRetry(MONGODB_URI)
     .then(() => {
       console.log('Connected to MongoDB');
       startAlertScheduler();

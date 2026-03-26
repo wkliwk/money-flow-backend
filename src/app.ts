@@ -27,14 +27,16 @@ app.use(cors({
 }));
 app.use(express.json());
 
+const { version } = require('../package.json') as { version: string };
+
 app.get('/health', (_req, res) => {
-  res.json({ status: 'ok' });
+  res.json({ status: 'ok', version });
 });
 
 app.get('/api/health', async (_req, res) => {
   const health = await getHealthStatus();
   const statusCode = health.status === 'healthy' ? 200 : 503;
-  res.status(statusCode).json(health);
+  res.status(statusCode).json({ ...health, version });
 });
 
 app.use('/auth', authRoutes);

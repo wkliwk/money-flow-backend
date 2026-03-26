@@ -1,0 +1,55 @@
+services:
+  mongo:
+    image: mongo:7
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo-data:/data/db
+    healthcheck:
+      test: mongosh --eval "db.adminCommand('ping')" --quiet
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build:
+      context: .
+      target: dev
+    ports:
+      - "${PORT:-3001}:3001"
+    volumes:
+      - ./src:/app/src
+      - ./tsconfig.json:/app/tsconfig.json
+    environment:
+      - PORT=3001
+      - MONGODB_URI=mongodb://mongo:27017/money-flow
+      - JWT_SECRET=${JWT_SECRET:-local-dev-secret-change-me}
+      - FRONTEND_URL=${FRONTEND_URL:-http://localhost:3000}
+      - NODE_ENV=development
+    depends_on:
+      mongo:
+        condition: service_healthy
+    profiles:
+      - dev
+      - test
+
+  backend-prod:
+    build:
+      context: .
+      target: prod
+    ports:
+      - "${PORT:-3001}:3001"
+    environment:
+      - PORT=3001
+      - MONGODB_URI=mongodb://mongo:27017/money-flow
+      - JWT_SECRET=${JWT_SECRET:-local-dev-secret-change-me}
+      - FRONTEND_URL=${FRONTEND_URL:-http://localhost:3000}
+      - NODE_ENV=production
+    depends_on:
+      mongo:
+        condition: service_healthy
+    profiles:
+      - test
+
+volumes:
+  mongo-data:

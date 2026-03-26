@@ -49,6 +49,10 @@
     "testMatch": [
       "**/__tests__/**/*.test.ts"
     ],
+    "coveragePathIgnorePatterns": [
+      "/node_modules/",
+      "/scripts/"
+    ],
     "forceExit": true
   }
 }

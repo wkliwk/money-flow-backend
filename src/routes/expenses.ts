@@ -3,6 +3,7 @@ import { body, validationResult } from 'express-validator';
 import { compareTwoStrings } from 'string-similarity';
 import ExpenseModel from '../models/Expense';
 import { protect, AuthRequest } from '../middleware/auth';
+import { checkAndQueueBudgetAlerts } from '../utils/alerts';
 
 const router = Router();
 
@@ -116,6 +117,13 @@ router.post('/', expenseValidation, async (req: AuthRequest, res: Response) => {
     const saved = await expense.save();
     const result = saved.toObject();
     res.status(201).json(result);
+
+    // Check budget alerts asynchronously (don't block response)
+    if (req.userId) {
+      checkAndQueueBudgetAlerts(req.userId).catch((error) => {
+        console.error('Error queuing budget alerts:', error);
+      });
+    }
   } catch {
     res.status(400).json({ error: 'Failed to create expense' });
   }

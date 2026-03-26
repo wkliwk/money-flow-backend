@@ -1,6 +1,7 @@
 import { Router, Response } from 'express';
 import ExpenseModel from '../models/Expense';
 import { protect, AuthRequest } from '../middleware/auth';
+import { sendWeeklyDigestForUser, aggregateWeeklyData, formatDigestMessage } from '../utils/weeklyDigest';
 
 const router = Router();
 
@@ -73,6 +74,18 @@ router.get('/monthly', async (req: AuthRequest, res: Response) => {
     res.json({ data });
   } catch {
     res.status(500).json({ error: 'Failed to fetch monthly report' });
+  }
+});
+
+router.post('/weekly-digest', async (req: AuthRequest, res: Response) => {
+  try {
+    const userId = req.userId as string;
+    const data = await aggregateWeeklyData(userId, new Date());
+    const message = formatDigestMessage(data);
+    const sent = await sendWeeklyDigestForUser(userId);
+    res.json({ sent, digest: data, message });
+  } catch {
+    res.status(500).json({ error: 'Failed to generate weekly digest' });
   }
 });
 

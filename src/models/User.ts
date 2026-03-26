@@ -12,6 +12,8 @@ export interface IUser extends Document {
   email: string;
   password: string;
   budgets: IBudget[];
+  telegramChatId?: string;
+  weeklyDigestEnabled: boolean;
   createdAt: Date;
   comparePassword(candidate: string): Promise<boolean>;
 }
@@ -31,6 +33,8 @@ const UserSchema = new mongoose.Schema(
       ],
       default: [],
     },
+    telegramChatId: { type: String, default: undefined },
+    weeklyDigestEnabled: { type: Boolean, default: false },
   },
   { timestamps: true }
 );

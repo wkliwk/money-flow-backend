@@ -142,18 +142,16 @@ router.put('/:id', expenseValidation, async (req: AuthRequest, res: Response) =>
     if (Array.isArray(participants)) updateData.participants = participants; else updateData.participants = [];
     if (isRecurring !== undefined) updateData.isRecurring = isRecurring;
     if (recurringFrequency !== undefined) updateData.recurringFrequency = recurringFrequency;
-    const result = await ExpenseModel.findOneAndUpdate(
+    const updated = await ExpenseModel.findOneAndUpdate(
       { _id: req.params.id, owner: req.userId },
       { $set: updateData },
-      { new: false, runValidators: true, strict: true }
+      { new: true, runValidators: true }
     );
-    if (!result) {
+    if (!updated) {
       res.status(404).json({ error: 'Expense not found' });
       return;
     }
-    // Re-fetch to get the actual stored document including all fields
-    const updated = await ExpenseModel.findOne({ _id: req.params.id, owner: req.userId }).lean();
-    res.json(updated);
+    res.json(updated.toObject());
   } catch {
     res.status(400).json({ error: 'Failed to update expense' });
   }

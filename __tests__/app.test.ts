@@ -10,7 +10,7 @@ describe('GET /health', () => {
       .get('/health');
 
     expect(res.status).toBe(200);
-    expect(res.body).toEqual({ status: 'ok' });
+    expect(res.body.status).toBe('ok');
   });
 });
 

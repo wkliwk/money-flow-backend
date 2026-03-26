@@ -14,6 +14,7 @@ import recurringRoutes from './routes/recurring';
 import reportRoutes from './routes/reports';
 import { startAlertScheduler } from './jobs/processAlerts';
 import { startRecurringScheduler } from './jobs/processRecurring';
+import { startWeeklyDigestScheduler } from './jobs/weeklyDigest';
 
 dotenv.config();
 
@@ -64,6 +65,7 @@ if (process.env.NODE_ENV !== 'test') {
       console.log('Connected to MongoDB');
       startAlertScheduler();
       startRecurringScheduler();
+      startWeeklyDigestScheduler();
       app.listen(PORT, () => {
         console.log(`Server running on port ${PORT}`);
       });

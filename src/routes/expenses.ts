@@ -129,7 +129,7 @@ router.post('/', expenseValidation, async (req: AuthRequest, res: Response) => {
     return;
   }
   try {
-    const { description, amount, type, category, date, notes, participants, isRecurring, recurringFrequency, paymentMethod, currency, originalAmount, exchangeRate } = req.body;
+    const { description, amount, type, category, date, notes, participants, isRecurring, recurringFrequency, paymentMethod, currency, originalAmount, exchangeRate, splitBill } = req.body;
 
     // Check for potential duplicates
     if (req.userId && typeof description === 'string' && typeof amount === 'number') {
@@ -151,6 +151,7 @@ router.post('/', expenseValidation, async (req: AuthRequest, res: Response) => {
       ...(currency !== undefined && { currency }),
       ...(originalAmount !== undefined && { originalAmount }),
       ...(exchangeRate !== undefined && { exchangeRate }),
+      ...(splitBill !== undefined && { splitBill }),
     });
     const saved = await expense.save();
     const result = saved.toObject();
@@ -180,7 +181,7 @@ router.put('/:id', expenseValidation, async (req: AuthRequest, res: Response) =>
       res.status(404).json({ error: 'Expense not found' });
       return;
     }
-    const { description, amount, type, category, date, participants, paymentMethod, currency, originalAmount, exchangeRate } = req.body;
+    const { description, amount, type, category, date, participants, paymentMethod, currency, originalAmount, exchangeRate, splitBill } = req.body;
     expense.description = description;
     expense.amount = amount;
     expense.type = type;
@@ -191,6 +192,7 @@ router.put('/:id', expenseValidation, async (req: AuthRequest, res: Response) =>
     if (currency !== undefined) expense.currency = currency;
     if (originalAmount !== undefined) expense.originalAmount = originalAmount;
     if (exchangeRate !== undefined) expense.exchangeRate = exchangeRate;
+    expense.splitBill = splitBill !== undefined ? splitBill : false;
     await expense.save();
     res.json(expense.toObject());
   } catch {

@@ -99,6 +99,54 @@ describe('POST /api/expenses', () => {
     expect(res.status).toBe(201);
     expect(res.body.owner).toBe(TEST_USER_ID);
   });
+
+  it('detects exact duplicates (same amount, exact description)', async () => {
+    await createExpense({ description: 'Coffee', amount: 5 });
+    const res = await request(app)
+      .post('/api/expenses')
+      .set('Authorization', `Bearer ${authToken}`)
+      .send({ ...basePayload, description: 'Coffee', amount: 5 });
+    expect(res.status).toBe(409);
+    expect(res.body.error).toContain('Potential duplicate detected');
+  });
+
+  it('detects similar duplicates (90%+ similarity)', async () => {
+    await createExpense({ description: 'Starbucks Coffee', amount: 7.50 });
+    const res = await request(app)
+      .post('/api/expenses')
+      .set('Authorization', `Bearer ${authToken}`)
+      .send({ ...basePayload, description: 'Starbucks Coffe', amount: 7.50 });
+    expect(res.status).toBe(409);
+    expect(res.body.error).toContain('Potential duplicate detected');
+  });
+
+  it('allows different amounts with same description', async () => {
+    await createExpense({ description: 'Coffee', amount: 5 });
+    const res = await request(app)
+      .post('/api/expenses')
+      .set('Authorization', `Bearer ${authToken}`)
+      .send({ ...basePayload, description: 'Coffee', amount: 6 });
+    expect(res.status).toBe(201);
+  });
+
+  it('allows similar description with different amount', async () => {
+    await createExpense({ description: 'Coffee', amount: 5 });
+    const res = await request(app)
+      .post('/api/expenses')
+      .set('Authorization', `Bearer ${authToken}`)
+      .send({ ...basePayload, description: 'Coffe', amount: 10 });
+    expect(res.status).toBe(201);
+  });
+
+
+  it('isolates duplicates per user', async () => {
+    await createExpense({ description: 'Coffee', amount: 5 });
+    const res = await request(app)
+      .post('/api/expenses')
+      .set('Authorization', `Bearer ${otherToken}`)
+      .send({ ...basePayload, description: 'Coffee', amount: 5 });
+    expect(res.status).toBe(201);
+  });
 });
 
 describe('PUT /api/expenses/:id', () => {

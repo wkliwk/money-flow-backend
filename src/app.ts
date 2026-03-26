@@ -10,6 +10,7 @@ import budgetRoutes from './routes/budgets';
 import netWorthRoutes from './routes/net-worth';
 import exportRoutes from './routes/export';
 import importRoutes from './routes/import';
+import { startAlertScheduler } from './jobs/processAlerts';
 
 dotenv.config();
 
@@ -49,6 +50,7 @@ if (process.env.NODE_ENV !== 'test') {
     .connect(MONGODB_URI)
     .then(() => {
       console.log('Connected to MongoDB');
+      startAlertScheduler();
       app.listen(PORT, () => {
         console.log(`Server running on port ${PORT}`);
       });

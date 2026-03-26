@@ -83,6 +83,41 @@ router.get('/summary', async (req: AuthRequest, res: Response) => {
   }
 });
 
+// POST /api/budgets/:category/alerts - enable/disable alerts for category
+router.post('/:category/alerts', [
+  body('enable_alerts').isBoolean().withMessage('enable_alerts must be a boolean'),
+], async (req: AuthRequest, res: Response) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    res.status(400).json({ error: errors.array()[0].msg });
+    return;
+  }
+  try {
+    const { category } = req.params;
+    const { enable_alerts } = req.body;
+
+    const user = await UserModel.findById(req.userId);
+    if (!user) {
+      res.status(404).json({ error: 'User not found' });
+      return;
+    }
+
+    // Find or create budget entry for this category
+    let budget = user.budgets.find((b) => b.category === category);
+    if (!budget) {
+      res.status(404).json({ error: 'Budget not found for this category' });
+      return;
+    }
+
+    budget.enable_alerts = enable_alerts;
+    await user.save();
+
+    res.json({ message: `Alerts ${enable_alerts ? 'enabled' : 'disabled'} for ${category}` });
+  } catch {
+    res.status(500).json({ error: 'Failed to update alert settings' });
+  }
+});
+
 // PUT /api/budgets
 router.put(
   '/',

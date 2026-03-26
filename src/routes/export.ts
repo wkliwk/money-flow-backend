@@ -30,14 +30,15 @@ router.get('/csv', async (req: AuthRequest, res) => {
       .lean();
 
     // Build CSV
-    const headers = ['Date', 'Description', 'Category', 'Type', 'Amount', 'Participants'];
-    const rows = expenses.map((e: any) => [
-      new Date(e.date || e.createdAt).toISOString().split('T')[0],
-      e.description || '',
-      e.category || '',
-      e.type || '',
-      e.amount || 0,
-      e.participants?.join(';') || '',
+    const headers = ['Date', 'Description', 'Category', 'Type', 'Amount', 'Payment Method', 'Participants'];
+    const rows = expenses.map((e: Record<string, unknown>) => [
+      new Date((e.date || e.createdAt) as string).toISOString().split('T')[0],
+      (e.description as string) || '',
+      (e.category as string) || '',
+      (e.type as string) || '',
+      (e.amount as number) || 0,
+      (e.paymentMethod as string) || '',
+      (e.participants as string[])?.join(';') || '',
     ]);
 
     // Build CSV content

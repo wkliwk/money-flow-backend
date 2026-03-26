@@ -1,7 +1,7 @@
 import { Router, Response } from 'express';
 import { body, validationResult } from 'express-validator';
 import { compareTwoStrings } from 'string-similarity';
-import ExpenseModel from '../models/Expense';
+import ExpenseModel, { PAYMENT_METHODS } from '../models/Expense';
 import { protect, AuthRequest } from '../middleware/auth';
 import { checkAndQueueBudgetAlerts } from '../utils/alerts';
 
@@ -45,9 +45,15 @@ const participantsValidation = body('participants')
     return true;
   });
 
+const paymentMethodValidation = body('paymentMethod')
+  .optional({ values: 'null' })
+  .isIn([...PAYMENT_METHODS])
+  .withMessage(`paymentMethod must be one of: ${PAYMENT_METHODS.join(', ')}`);
+
 const expenseValidation = [
   body('amount').isNumeric().withMessage('Amount must be a number'),
   participantsValidation,
+  paymentMethodValidation,
 ];
 
 // GET /api/expenses with pagination
@@ -57,13 +63,23 @@ router.get('/', async (req: AuthRequest, res: Response) => {
     const limit = Math.min(100, Math.max(1, parseInt(req.query.limit as string) || 20));
     const skip = (page - 1) * limit;
 
+    const filter: Record<string, unknown> = { owner: req.userId };
+    const paymentMethodQuery = req.query.paymentMethod as string | undefined;
+    if (paymentMethodQuery) {
+      if (!PAYMENT_METHODS.includes(paymentMethodQuery as typeof PAYMENT_METHODS[number])) {
+        res.status(400).json({ error: `Invalid paymentMethod filter. Must be one of: ${PAYMENT_METHODS.join(', ')}` });
+        return;
+      }
+      filter.paymentMethod = paymentMethodQuery;
+    }
+
     const [expenses, total] = await Promise.all([
-      ExpenseModel.find({ owner: req.userId })
+      ExpenseModel.find(filter)
         .sort({ date: -1, createdAt: -1 })
         .skip(skip)
         .limit(limit)
         .lean(),
-      ExpenseModel.countDocuments({ owner: req.userId }),
+      ExpenseModel.countDocuments(filter),
     ]);
 
     const pages = Math.ceil(total / limit);
@@ -95,7 +111,7 @@ router.post('/', expenseValidation, async (req: AuthRequest, res: Response) => {
     return;
   }
   try {
-    const { description, amount, type, category, date, notes, participants, isRecurring, recurringFrequency } = req.body;
+    const { description, amount, type, category, date, notes, participants, isRecurring, recurringFrequency, paymentMethod } = req.body;
 
     // Check for potential duplicates
     if (req.userId && typeof description === 'string' && typeof amount === 'number') {
@@ -113,6 +129,7 @@ router.post('/', expenseValidation, async (req: AuthRequest, res: Response) => {
       participants: Array.isArray(participants) ? participants : [],
       ...(isRecurring !== undefined && { isRecurring }),
       ...(recurringFrequency !== undefined && { recurringFrequency }),
+      ...(paymentMethod !== undefined && { paymentMethod }),
     });
     const saved = await expense.save();
     const result = saved.toObject();
@@ -137,11 +154,12 @@ router.put('/:id', expenseValidation, async (req: AuthRequest, res: Response) =>
     return;
   }
   try {
-    const { description, amount, type, category, date, notes, participants, isRecurring, recurringFrequency } = req.body;
+    const { description, amount, type, category, date, notes, participants, isRecurring, recurringFrequency, paymentMethod } = req.body;
     const updateData: Record<string, unknown> = { description, amount, type, category, date, notes };
     if (Array.isArray(participants)) updateData.participants = participants; else updateData.participants = [];
     if (isRecurring !== undefined) updateData.isRecurring = isRecurring;
     if (recurringFrequency !== undefined) updateData.recurringFrequency = recurringFrequency;
+    if (paymentMethod !== undefined) updateData.paymentMethod = paymentMethod;
     const updated = await ExpenseModel.findOneAndUpdate(
       { _id: req.params.id, owner: req.userId },
       { $set: updateData },

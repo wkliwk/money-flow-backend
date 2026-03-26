@@ -8,12 +8,15 @@ export interface IBudget {
   enable_alerts?: boolean;
 }
 
+export type ThemePreference = 'light' | 'dark' | 'system';
+
 export interface IUser extends Document {
   email: string;
   password: string;
   budgets: IBudget[];
   telegramChatId?: string;
   weeklyDigestEnabled: boolean;
+  themePreference: ThemePreference;
   createdAt: Date;
   comparePassword(candidate: string): Promise<boolean>;
 }
@@ -35,6 +38,7 @@ const UserSchema = new mongoose.Schema(
     },
     telegramChatId: { type: String, default: undefined },
     weeklyDigestEnabled: { type: Boolean, default: false },
+    themePreference: { type: String, enum: ['light', 'dark', 'system'], default: 'system' },
   },
   { timestamps: true }
 );

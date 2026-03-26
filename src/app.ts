@@ -10,7 +10,9 @@ import budgetRoutes from './routes/budgets';
 import netWorthRoutes from './routes/net-worth';
 import exportRoutes from './routes/export';
 import importRoutes from './routes/import';
+import recurringRoutes from './routes/recurring';
 import { startAlertScheduler } from './jobs/processAlerts';
+import { startRecurringScheduler } from './jobs/processRecurring';
 
 dotenv.config();
 
@@ -34,6 +36,7 @@ app.use('/api/budgets', budgetRoutes);
 app.use('/api/net-worth', netWorthRoutes);
 app.use('/api/export', exportRoutes);
 app.use('/api/import', importRoutes);
+app.use('/api/recurring', recurringRoutes);
 
 Sentry.setupExpressErrorHandler(app);
 
@@ -51,6 +54,7 @@ if (process.env.NODE_ENV !== 'test') {
     .then(() => {
       console.log('Connected to MongoDB');
       startAlertScheduler();
+      startRecurringScheduler();
       app.listen(PORT, () => {
         console.log(`Server running on port ${PORT}`);
       });

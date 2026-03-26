@@ -41,5 +41,8 @@ const ExpenseSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
+ExpenseSchema.index({ owner: 1, date: -1 });
+ExpenseSchema.index({ owner: 1, _id: 1 });
+
 export const ExpenseModel = mongoose.model<IExpense>('Expense', ExpenseSchema);
 export default ExpenseModel;

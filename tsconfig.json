@@ -8,6 +8,6 @@
       "esModuleInterop": true,
       "skipLibCheck": true
     },
-    "exclude": ["__tests__", "node_modules"]
+    "exclude": ["__tests__", "node_modules", "scripts"]
   }
   

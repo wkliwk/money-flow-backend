@@ -1,5 +1,19 @@
 import mongoose, { Document } from 'mongoose';
 
+const PAYMENT_METHODS = [
+  'cash',
+  'credit_card',
+  'debit_card',
+  'octopus',
+  'payme',
+  'fps',
+  'alipay_hk',
+  'wechat_pay',
+  'other',
+] as const;
+
+type PaymentMethod = typeof PAYMENT_METHODS[number];
+
 interface IExpense extends Document {
   owner: string;
   description?: string;
@@ -16,6 +30,7 @@ interface IExpense extends Document {
   endDate?: Date | null;
   date?: Date;
   amount: number;
+  paymentMethod?: PaymentMethod | null;
   createdAt?: Date;
   updatedAt?: Date;
 }
@@ -37,6 +52,11 @@ const ExpenseSchema = new mongoose.Schema(
     item: String,
     participants: [String],
     amount: { type: Number, required: true },
+    paymentMethod: {
+      type: String,
+      enum: [...PAYMENT_METHODS, null],
+      default: null,
+    },
   },
   { timestamps: true }
 );
@@ -44,5 +64,6 @@ const ExpenseSchema = new mongoose.Schema(
 ExpenseSchema.index({ owner: 1, date: -1 });
 ExpenseSchema.index({ owner: 1, _id: 1 });
 
+export { PAYMENT_METHODS };
 export const ExpenseModel = mongoose.model<IExpense>('Expense', ExpenseSchema);
 export default ExpenseModel;

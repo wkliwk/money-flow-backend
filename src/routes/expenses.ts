@@ -96,9 +96,15 @@ router.post('/', expenseValidation, async (req: AuthRequest, res: Response) => {
   try {
     const { description, amount, type, category, date, notes, participants, isRecurring, recurringFrequency } = req.body;
 
-    // TODO: Check for potential duplicates
-    // Temporarily disabled due to TypeScript narrowing issues
-    // Will re-enable after refactoring duplicate check logic
+    // Check for potential duplicates
+    if (req.userId && typeof description === 'string' && typeof amount === 'number') {
+      const duplicate = await checkDuplicates(req.userId, description, amount);
+      if (duplicate) {
+        const minutesAgo = Math.round((Date.now() - new Date(duplicate.createdAt || '').getTime()) / 60000);
+        res.status(409).json({ error: `Potential duplicate detected. Similar transaction created ${minutesAgo} minutes ago.` });
+        return;
+      }
+    }
 
     const expense = new ExpenseModel({
       owner: req.userId,

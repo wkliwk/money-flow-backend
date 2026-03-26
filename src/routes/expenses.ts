@@ -1,11 +1,30 @@
 import { Router, Response } from 'express';
 import { body, validationResult } from 'express-validator';
+import { compareTwoStrings } from 'string-similarity';
 import ExpenseModel from '../models/Expense';
 import { protect, AuthRequest } from '../middleware/auth';
 
 const router = Router();
 
 router.use(protect);
+
+// Helper: check for potential duplicates in the last 24 hours
+async function checkDuplicates(userId: string, description: string, amount: number) {
+  const last24h = new Date(Date.now() - 24 * 60 * 60 * 1000);
+  const recentExpenses = await ExpenseModel.find({
+    owner: userId,
+    amount: amount,
+    createdAt: { $gte: last24h },
+  }).lean();
+
+  const potential = recentExpenses.filter((exp) => {
+    if (!exp.description) return false;
+    const similarity = compareTwoStrings(description.toLowerCase(), exp.description.toLowerCase());
+    return similarity >= 0.9;
+  });
+
+  return potential.length > 0 ? potential[0] : null;
+}
 
 const participantsValidation = body('participants')
   .optional()
@@ -76,6 +95,11 @@ router.post('/', expenseValidation, async (req: AuthRequest, res: Response) => {
   }
   try {
     const { description, amount, type, category, date, notes, participants, isRecurring, recurringFrequency } = req.body;
+
+    // TODO: Check for potential duplicates
+    // Temporarily disabled due to TypeScript narrowing issues
+    // Will re-enable after refactoring duplicate check logic
+
     const expense = new ExpenseModel({
       owner: req.userId,
       description, amount, type, category, date, notes,

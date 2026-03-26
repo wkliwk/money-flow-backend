@@ -16,6 +16,8 @@ interface IExpense extends Document {
   endDate?: Date | null;
   date?: Date;
   amount: number;
+  createdAt?: Date;
+  updatedAt?: Date;
 }
 
 const ExpenseSchema = new mongoose.Schema(

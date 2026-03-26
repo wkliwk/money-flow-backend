@@ -175,25 +175,24 @@ router.put('/:id', expenseValidation, async (req: AuthRequest, res: Response) =>
     return;
   }
   try {
-    const { description, amount, type, category, date, notes, participants, isRecurring, recurringFrequency, paymentMethod, currency, originalAmount, exchangeRate } = req.body;
-    const updateData: Record<string, unknown> = { description, amount, type, category, date, notes };
-    if (Array.isArray(participants)) updateData.participants = participants; else updateData.participants = [];
-    if (isRecurring !== undefined) updateData.isRecurring = isRecurring;
-    if (recurringFrequency !== undefined) updateData.recurringFrequency = recurringFrequency;
-    if (paymentMethod !== undefined) updateData.paymentMethod = paymentMethod;
-    if (currency !== undefined) updateData.currency = currency;
-    if (originalAmount !== undefined) updateData.originalAmount = originalAmount;
-    if (exchangeRate !== undefined) updateData.exchangeRate = exchangeRate;
-    const updated = await ExpenseModel.findOneAndUpdate(
-      { _id: req.params.id, owner: req.userId },
-      { $set: updateData },
-      { new: true, runValidators: true }
-    );
-    if (!updated) {
+    const expense = await ExpenseModel.findOne({ _id: req.params.id, owner: req.userId });
+    if (!expense) {
       res.status(404).json({ error: 'Expense not found' });
       return;
     }
-    res.json(updated.toObject());
+    const { description, amount, type, category, date, participants, paymentMethod, currency, originalAmount, exchangeRate } = req.body;
+    expense.description = description;
+    expense.amount = amount;
+    expense.type = type;
+    expense.category = category;
+    expense.date = date;
+    expense.participants = Array.isArray(participants) ? participants : [];
+    if (paymentMethod !== undefined) expense.paymentMethod = paymentMethod;
+    if (currency !== undefined) expense.currency = currency;
+    if (originalAmount !== undefined) expense.originalAmount = originalAmount;
+    if (exchangeRate !== undefined) expense.exchangeRate = exchangeRate;
+    await expense.save();
+    res.json(expense.toObject());
   } catch {
     res.status(400).json({ error: 'Failed to update expense' });
   }

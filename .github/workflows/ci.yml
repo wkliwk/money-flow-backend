@@ -18,6 +18,25 @@ jobs:
           cache: yarn
       - name: Install dependencies
         run: yarn install --frozen-lockfile
+      - name: Test with coverage gate
+        run: |
+          npm test -- --coverage --coverageReporters=json-summary --forceExit 2>&1 | tee /tmp/test-output.txt
+          COVERAGE=$(python3 -c "
+          import json, sys
+          try:
+            with open('coverage/coverage-summary.json') as f:
+              d = json.load(f)
+            pct = d['total']['lines']['pct']
+            print(int(pct))
+          except Exception as e:
+            print(0)
+          ")
+          echo "Line coverage: ${COVERAGE}%"
+          if [ "${COVERAGE}" -lt 90 ]; then
+            echo "❌ Coverage ${COVERAGE}% is below the 90% baseline."
+            exit 1
+          fi
+          echo "✅ Coverage ${COVERAGE}% meets 90% baseline."
       - name: TypeScript compile
         run: yarn build
       - name: Notify Telegram on success

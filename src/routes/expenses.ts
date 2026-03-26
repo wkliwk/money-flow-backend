@@ -1,7 +1,7 @@
 import { Router, Response } from 'express';
 import { body, validationResult } from 'express-validator';
 import { compareTwoStrings } from 'string-similarity';
-import ExpenseModel, { PAYMENT_METHODS } from '../models/Expense';
+import ExpenseModel, { PAYMENT_METHODS, SUPPORTED_CURRENCIES } from '../models/Expense';
 import { protect, AuthRequest } from '../middleware/auth';
 import { checkAndQueueBudgetAlerts } from '../utils/alerts';
 
@@ -50,8 +50,26 @@ const paymentMethodValidation = body('paymentMethod')
   .isIn([...PAYMENT_METHODS])
   .withMessage(`paymentMethod must be one of: ${PAYMENT_METHODS.join(', ')}`);
 
+const currencyValidation = body('currency')
+  .optional()
+  .isIn([...SUPPORTED_CURRENCIES])
+  .withMessage(`currency must be one of: ${SUPPORTED_CURRENCIES.join(', ')}`);
+
+const originalAmountValidation = body('originalAmount')
+  .optional({ values: 'null' })
+  .isNumeric()
+  .withMessage('originalAmount must be a number');
+
+const exchangeRateValidation = body('exchangeRate')
+  .optional({ values: 'null' })
+  .isNumeric()
+  .withMessage('exchangeRate must be a number');
+
 const expenseValidation = [
   body('amount').isNumeric().withMessage('Amount must be a number'),
+  currencyValidation,
+  originalAmountValidation,
+  exchangeRateValidation,
   participantsValidation,
   paymentMethodValidation,
 ];
@@ -111,7 +129,7 @@ router.post('/', expenseValidation, async (req: AuthRequest, res: Response) => {
     return;
   }
   try {
-    const { description, amount, type, category, date, notes, participants, isRecurring, recurringFrequency, paymentMethod } = req.body;
+    const { description, amount, type, category, date, notes, participants, isRecurring, recurringFrequency, paymentMethod, currency, originalAmount, exchangeRate } = req.body;
 
     // Check for potential duplicates
     if (req.userId && typeof description === 'string' && typeof amount === 'number') {
@@ -130,6 +148,9 @@ router.post('/', expenseValidation, async (req: AuthRequest, res: Response) => {
       ...(isRecurring !== undefined && { isRecurring }),
       ...(recurringFrequency !== undefined && { recurringFrequency }),
       ...(paymentMethod !== undefined && { paymentMethod }),
+      ...(currency !== undefined && { currency }),
+      ...(originalAmount !== undefined && { originalAmount }),
+      ...(exchangeRate !== undefined && { exchangeRate }),
     });
     const saved = await expense.save();
     const result = saved.toObject();
@@ -154,12 +175,15 @@ router.put('/:id', expenseValidation, async (req: AuthRequest, res: Response) =>
     return;
   }
   try {
-    const { description, amount, type, category, date, notes, participants, isRecurring, recurringFrequency, paymentMethod } = req.body;
+    const { description, amount, type, category, date, notes, participants, isRecurring, recurringFrequency, paymentMethod, currency, originalAmount, exchangeRate } = req.body;
     const updateData: Record<string, unknown> = { description, amount, type, category, date, notes };
     if (Array.isArray(participants)) updateData.participants = participants; else updateData.participants = [];
     if (isRecurring !== undefined) updateData.isRecurring = isRecurring;
     if (recurringFrequency !== undefined) updateData.recurringFrequency = recurringFrequency;
     if (paymentMethod !== undefined) updateData.paymentMethod = paymentMethod;
+    if (currency !== undefined) updateData.currency = currency;
+    if (originalAmount !== undefined) updateData.originalAmount = originalAmount;
+    if (exchangeRate !== undefined) updateData.exchangeRate = exchangeRate;
     const updated = await ExpenseModel.findOneAndUpdate(
       { _id: req.params.id, owner: req.userId },
       { $set: updateData },

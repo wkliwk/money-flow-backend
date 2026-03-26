@@ -12,6 +12,7 @@ import exportRoutes from './routes/export';
 import importRoutes from './routes/import';
 import recurringRoutes from './routes/recurring';
 import reportRoutes from './routes/reports';
+import exchangeRateRoutes from './routes/exchange-rates';
 import { startAlertScheduler } from './jobs/processAlerts';
 import { startRecurringScheduler } from './jobs/processRecurring';
 import { startWeeklyDigestScheduler } from './jobs/weeklyDigest';
@@ -48,6 +49,7 @@ app.use('/api/export', exportRoutes);
 app.use('/api/import', importRoutes);
 app.use('/api/recurring', recurringRoutes);
 app.use('/api/reports', reportRoutes);
+app.use('/api/exchange-rates', exchangeRateRoutes);
 
 Sentry.setupExpressErrorHandler(app);
 

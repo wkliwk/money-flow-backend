@@ -4,6 +4,8 @@ import bcrypt from 'bcryptjs';
 export interface IBudget {
   category: string;
   limit: number;
+  alert_threshold?: number;
+  enable_alerts?: boolean;
 }
 
 export interface IUser extends Document {
@@ -18,7 +20,17 @@ const UserSchema = new mongoose.Schema(
   {
     email: { type: String, required: true, unique: true, lowercase: true, trim: true },
     password: { type: String, required: true, minlength: 6 },
-    budgets: { type: [{ category: String, limit: Number }], default: [] },
+    budgets: {
+      type: [
+        {
+          category: String,
+          limit: Number,
+          alert_threshold: { type: Number, default: 0.9 },
+          enable_alerts: { type: Boolean, default: false },
+        },
+      ],
+      default: [],
+    },
   },
   { timestamps: true }
 );

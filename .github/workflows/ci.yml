@@ -33,24 +33,31 @@ jobs:
           ")
           echo "Line coverage: ${COVERAGE}%"
           if [ "${COVERAGE}" -lt 90 ]; then
-            echo "❌ Coverage ${COVERAGE}% is below the 90% baseline."
+            echo "Coverage ${COVERAGE}% is below the 90% baseline."
             exit 1
           fi
-          echo "✅ Coverage ${COVERAGE}% meets 90% baseline."
+          echo "Coverage ${COVERAGE}% meets 90% baseline."
       - name: TypeScript compile
         run: yarn build
+      - name: Deploy to Railway
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+        run: |
+          npm install -g @railway/cli
+          railway up --detach
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
       - name: Notify Telegram on success
         if: success()
         run: |
           curl -s -X POST "https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendMessage" \
             -d chat_id="${{ secrets.TELEGRAM_CHAT_ID }}" \
-            -d text="✅ CI passed: money-flow-backend (${{ github.ref_name }}) — ${{ github.event.head_commit.message }}"
+            -d text="CI passed + deployed: money-flow-backend (${{ github.ref_name }}) — ${{ github.event.head_commit.message }}"
       - name: Notify Telegram on failure
         if: failure()
         run: |
           curl -s -X POST "https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendMessage" \
             -d chat_id="${{ secrets.TELEGRAM_CHAT_ID }}" \
-            -d text="❌ CI failed: money-flow-backend (${{ github.ref_name }}) — ${{ github.event.head_commit.message }}"
+            -d text="CI failed: money-flow-backend (${{ github.ref_name }}) — ${{ github.event.head_commit.message }}"
 
   release:
     needs: build
@@ -113,11 +120,11 @@ jobs:
           CHORES=$(echo "$COMMITS" | grep -E '^[a-f0-9]+ chore:' | sed 's/^[a-f0-9]* chore: /- /' || true)
 
           NOTES="## What's in v${{ steps.version.outputs.version }}"$'\n'
-          [ -n "$FEATURES" ] && NOTES+=$'\n'"### ✨ New Features"$'\n'"$FEATURES"$'\n'
-          [ -n "$FIXES" ] && NOTES+=$'\n'"### 🐛 Bug Fixes"$'\n'"$FIXES"$'\n'
-          [ -n "$PERF" ] && NOTES+=$'\n'"### ⚡ Performance"$'\n'"$PERF"$'\n'
-          [ -n "$REFACTOR" ] && NOTES+=$'\n'"### 🔧 Improvements"$'\n'"$REFACTOR"$'\n'
-          [ -n "$CHORES" ] && NOTES+=$'\n'"### 🧹 Chores"$'\n'"$CHORES"$'\n'
+          [ -n "$FEATURES" ] && NOTES+=$'\n'"### New Features"$'\n'"$FEATURES"$'\n'
+          [ -n "$FIXES" ] && NOTES+=$'\n'"### Bug Fixes"$'\n'"$FIXES"$'\n'
+          [ -n "$PERF" ] && NOTES+=$'\n'"### Performance"$'\n'"$PERF"$'\n'
+          [ -n "$REFACTOR" ] && NOTES+=$'\n'"### Improvements"$'\n'"$REFACTOR"$'\n'
+          [ -n "$CHORES" ] && NOTES+=$'\n'"### Chores"$'\n'"$CHORES"$'\n'
           [ -n "$DIFF_LINE" ] && NOTES+=$'\n'"---"$'\n'"$DIFF_LINE"
 
           echo "notes<<EOF" >> $GITHUB_OUTPUT

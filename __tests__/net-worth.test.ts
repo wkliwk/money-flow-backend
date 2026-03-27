@@ -93,6 +93,19 @@ describe('POST /api/net-worth', () => {
     expect(res.body.error).toBeDefined();
   });
 
+  it('returns 400 when liabilities is not an object', async () => {
+    const res = await request(app)
+      .post('/api/net-worth')
+      .set('Authorization', `Bearer ${authToken}`)
+      .send({
+        assets: { cash: 1000 },
+        liabilities: 'not-an-object'
+      });
+
+    expect(res.status).toBe(400);
+    expect(res.body.error).toBeDefined();
+  });
+
   it('returns 400 with message when saving fails', async () => {
     jest.spyOn(NetWorthModel, 'findOneAndUpdate').mockRejectedValueOnce(new Error('db fail'));
 

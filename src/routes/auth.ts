@@ -1,6 +1,7 @@
 import { Router, Request, Response } from 'express';
 import jwt from 'jsonwebtoken';
 import { body, validationResult } from 'express-validator';
+import { OAuth2Client } from 'google-auth-library';
 import UserModel from '../models/User';
 
 const router = Router();
@@ -63,6 +64,65 @@ router.post(
       res.json({ token });
     } catch {
       res.status(500).json({ error: 'Login failed' });
+    }
+  }
+);
+
+// POST /auth/google
+router.post(
+  '/google',
+  [body('idToken').notEmpty()],
+  async (req: Request, res: Response) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      res.status(400).json({ error: 'idToken is required' });
+      return;
+    }
+
+    try {
+      const { idToken } = req.body as { idToken: string };
+      const clientId = process.env.GOOGLE_CLIENT_ID;
+      if (!clientId) {
+        res.status(500).json({ error: 'Google OAuth not configured' });
+        return;
+      }
+
+      const client = new OAuth2Client(clientId);
+      const ticket = await client.verifyIdToken({
+        idToken,
+        audience: clientId,
+      });
+      const payload = ticket.getPayload();
+      if (!payload || !payload.email) {
+        res.status(401).json({ error: 'Invalid Google token' });
+        return;
+      }
+
+      const { email, sub: googleId } = payload;
+
+      // Check if user exists by googleId or email
+      let user = await UserModel.findOne({
+        $or: [{ googleId }, { email: email.toLowerCase() }],
+      });
+
+      if (user) {
+        // Link Google account if not already linked
+        if (!user.googleId) {
+          user.googleId = googleId;
+          await user.save();
+        }
+      } else {
+        // Create new OAuth-only user
+        user = await UserModel.create({
+          email: email.toLowerCase(),
+          googleId,
+        });
+      }
+
+      const token = signToken(user.id as string);
+      res.json({ token });
+    } catch {
+      res.status(401).json({ error: 'Google authentication failed' });
     }
   }
 );

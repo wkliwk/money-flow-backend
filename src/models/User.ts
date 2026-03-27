@@ -12,7 +12,8 @@ export type ThemePreference = 'light' | 'dark' | 'system';
 
 export interface IUser extends Document {
   email: string;
-  password: string;
+  password?: string;
+  googleId?: string;
   budgets: IBudget[];
   telegramChatId?: string;
   weeklyDigestEnabled: boolean;
@@ -24,7 +25,8 @@ export interface IUser extends Document {
 const UserSchema = new mongoose.Schema(
   {
     email: { type: String, required: true, unique: true, lowercase: true, trim: true },
-    password: { type: String, required: true, minlength: 6 },
+    password: { type: String, minlength: 6 },
+    googleId: { type: String, sparse: true },
     budgets: {
       type: [
         {
@@ -44,7 +46,7 @@ const UserSchema = new mongoose.Schema(
 );
 
 UserSchema.pre('save', async function (next) {
-  if (!this.isModified('password')) return next();
+  if (!this.isModified('password') || !this.password) return next();
   this.password = await bcrypt.hash(this.password, 12);
   next();
 });

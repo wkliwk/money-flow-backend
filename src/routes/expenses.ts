@@ -74,6 +74,63 @@ const expenseValidation = [
   paymentMethodValidation,
 ];
 
+// GET /api/expenses/last-amounts — map of item/description → most recent amount
+router.get('/last-amounts', async (req: AuthRequest, res: Response) => {
+  try {
+    const results = await ExpenseModel.aggregate([
+      { $match: { owner: req.userId } },
+      { $sort: { date: -1, createdAt: -1 } },
+      {
+        $group: {
+          _id: { $toLower: { $ifNull: ['$item', '$description'] } },
+          amount: { $first: '$amount' },
+          date: { $first: '$date' },
+        },
+      },
+    ]);
+    const map: Record<string, number> = {};
+    for (const r of results) {
+      if (r._id) map[r._id] = r.amount;
+    }
+    res.json(map);
+  } catch {
+    res.status(500).json({ error: 'Failed to fetch last amounts' });
+  }
+});
+
+// GET /api/expenses/price-history/:item — price history for a specific item
+router.get('/price-history/:item', async (req: AuthRequest, res: Response) => {
+  try {
+    const itemName = req.params.item;
+    const limit = Math.min(100, Math.max(1, parseInt(req.query.limit as string) || 20));
+
+    const results = await ExpenseModel.find({
+      owner: req.userId,
+      $or: [
+        { item: { $regex: new RegExp(`^${itemName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i') } },
+        { description: { $regex: new RegExp(`^${itemName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i') } },
+      ],
+    })
+      .sort({ date: -1, createdAt: -1 })
+      .limit(limit)
+      .select('amount date description item category currency')
+      .lean();
+
+    const amounts = results.map((r) => r.amount);
+    const stats = amounts.length > 0 ? {
+      count: amounts.length,
+      latest: amounts[0],
+      min: Math.min(...amounts),
+      max: Math.max(...amounts),
+      avg: Math.round((amounts.reduce((s, a) => s + a, 0) / amounts.length) * 100) / 100,
+    } : null;
+
+    res.json({ item: itemName, history: results, stats });
+  } catch {
+    res.status(500).json({ error: 'Failed to fetch price history' });
+  }
+});
+
 // GET /api/expenses/analytics
 router.get('/analytics', async (req: AuthRequest, res: Response) => {
   try {

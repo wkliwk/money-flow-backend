@@ -8,6 +8,7 @@ import authRoutes from './routes/auth';
 import expenseRoutes from './routes/expenses';
 import budgetRoutes from './routes/budgets';
 import transactionRoutes from './routes/transactions';
+import itemPriceRoutes from './routes/item-prices';
 
 dotenv.config();
 
@@ -29,6 +30,7 @@ app.use('/auth', authRoutes);
 app.use('/api/expenses', expenseRoutes);
 app.use('/api/budgets', budgetRoutes);
 app.use('/api/transactions', transactionRoutes);
+app.use('/api/item-prices', itemPriceRoutes);
 
 Sentry.setupExpressErrorHandler(app);
 

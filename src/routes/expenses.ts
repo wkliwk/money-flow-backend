@@ -238,7 +238,7 @@ router.post('/', expenseValidation, async (req: AuthRequest, res: Response) => {
     return;
   }
   try {
-    const { description, amount, type, category, date, notes, participants, isRecurring, recurringFrequency, paymentMethod, currency, originalAmount, exchangeRate, splitBill } = req.body;
+    const { description, amount, type, category, item, date, notes, participants, isRecurring, recurringFrequency, paymentMethod, currency, originalAmount, exchangeRate, splitBill } = req.body;
 
     // Check for potential duplicates
     if (req.userId && typeof description === 'string' && typeof amount === 'number') {
@@ -252,7 +252,7 @@ router.post('/', expenseValidation, async (req: AuthRequest, res: Response) => {
 
     const expense = new ExpenseModel({
       owner: req.userId,
-      description, amount, type, category, date, notes,
+      description, amount, type, category, item, date, notes,
       participants: Array.isArray(participants) ? participants : [],
       ...(isRecurring !== undefined && { isRecurring }),
       ...(recurringFrequency !== undefined && { recurringFrequency }),
@@ -290,11 +290,12 @@ router.put('/:id', expenseValidation, async (req: AuthRequest, res: Response) =>
       res.status(404).json({ error: 'Expense not found' });
       return;
     }
-    const { description, amount, type, category, date, participants, paymentMethod, currency, originalAmount, exchangeRate, splitBill } = req.body;
+    const { description, amount, type, category, item, date, participants, paymentMethod, currency, originalAmount, exchangeRate, splitBill } = req.body;
     expense.description = description;
     expense.amount = amount;
     expense.type = type;
     expense.category = category;
+    expense.item = item;
     expense.date = date;
     expense.participants = Array.isArray(participants) ? participants : [];
     if (paymentMethod !== undefined) expense.paymentMethod = paymentMethod;

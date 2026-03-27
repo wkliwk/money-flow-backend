@@ -7,6 +7,7 @@ import dotenv from 'dotenv';
 import authRoutes from './routes/auth';
 import expenseRoutes from './routes/expenses';
 import budgetRoutes from './routes/budgets';
+import transactionRoutes from './routes/transactions';
 
 dotenv.config();
 
@@ -27,6 +28,7 @@ app.get('/health', (_req, res) => {
 app.use('/auth', authRoutes);
 app.use('/api/expenses', expenseRoutes);
 app.use('/api/budgets', budgetRoutes);
+app.use('/api/transactions', transactionRoutes);
 
 Sentry.setupExpressErrorHandler(app);
 

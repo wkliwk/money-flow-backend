@@ -1,5 +1,6 @@
 import { Router, Response } from 'express';
 import ExpenseModel from '../models/Expense';
+import UserModel from '../models/User';
 import { protect, AuthRequest } from '../middleware/auth';
 import { sendWeeklyDigestForUser, aggregateWeeklyData, formatDigestMessage } from '../utils/weeklyDigest';
 
@@ -74,6 +75,79 @@ router.get('/monthly', async (req: AuthRequest, res: Response) => {
     res.json({ data });
   } catch {
     res.status(500).json({ error: 'Failed to fetch monthly report' });
+  }
+});
+
+router.get('/budget-summary', async (req: AuthRequest, res: Response) => {
+  try {
+    const monthParam = req.query.month as string | undefined;
+    let year: number;
+    let month: number;
+
+    if (monthParam) {
+      if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(monthParam)) {
+        res.status(400).json({ error: 'month must be in YYYY-MM format' });
+        return;
+      }
+      [year, month] = monthParam.split('-').map(Number);
+    } else {
+      const now = new Date();
+      year = now.getFullYear();
+      month = now.getMonth() + 1;
+    }
+
+    const startDate = new Date(year, month - 1, 1);
+    const endDate = new Date(year, month, 1);
+
+    const user = await UserModel.findById(req.userId).lean();
+    const budgets = user?.budgets || [];
+
+    const spendingRows = await ExpenseModel.aggregate([
+      {
+        $match: {
+          owner: req.userId,
+          type: 'expense',
+          date: { $gte: startDate, $lt: endDate },
+        },
+      },
+      {
+        $group: {
+          _id: '$category',
+          spent: { $sum: '$amount' },
+        },
+      },
+    ]);
+
+    const spendingMap = new Map<string, number>();
+    for (const row of spendingRows) {
+      spendingMap.set(row._id || 'Uncategorised', row.spent);
+    }
+
+    const categories = new Set<string>();
+    for (const b of budgets) categories.add(b.category);
+    for (const [cat] of spendingMap) categories.add(cat);
+
+    const budgetMap = new Map<string, number>();
+    for (const b of budgets) budgetMap.set(b.category, b.limit);
+
+    const data = Array.from(categories).map((category) => {
+      const budgetLimit = budgetMap.get(category) ?? 0;
+      const spent = spendingMap.get(category) ?? 0;
+      const remaining = budgetLimit - spent;
+      const percentUsed = budgetLimit > 0 ? Math.round((spent / budgetLimit) * 10000) / 100 : 0;
+      const overBudget = budgetLimit > 0 && spent > budgetLimit;
+      return { category, budgetLimit, spent, remaining, percentUsed, overBudget };
+    });
+
+    data.sort((a, b) => b.percentUsed - a.percentUsed);
+
+    const totalBudgeted = data.reduce((sum, d) => sum + d.budgetLimit, 0);
+    const totalSpent = data.reduce((sum, d) => sum + d.spent, 0);
+    const totalRemaining = totalBudgeted - totalSpent;
+
+    res.json({ data, totalBudgeted, totalSpent, totalRemaining });
+  } catch {
+    res.status(500).json({ error: 'Failed to fetch budget summary' });
   }
 });
 

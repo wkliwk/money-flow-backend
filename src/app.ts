@@ -16,9 +16,11 @@ import exchangeRateRoutes from './routes/exchange-rates';
 import userRoutes from './routes/users';
 import receiptRoutes from './routes/receipts';
 import templateRoutes from './routes/templates';
+import jobRoutes from './routes/jobs';
 import { startAlertScheduler } from './jobs/processAlerts';
 import { startRecurringScheduler } from './jobs/processRecurring';
 import { startWeeklyDigestScheduler } from './jobs/weeklyDigest';
+import { startMonthlySummaryScheduler } from './jobs/monthlySummary';
 
 dotenv.config();
 
@@ -56,6 +58,7 @@ app.use('/api/exchange-rates', exchangeRateRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/receipts', receiptRoutes);
 app.use('/api/templates', templateRoutes);
+app.use('/api/jobs', jobRoutes);
 
 Sentry.setupExpressErrorHandler(app);
 
@@ -74,6 +77,7 @@ if (process.env.NODE_ENV !== 'test') {
       startAlertScheduler();
       startRecurringScheduler();
       startWeeklyDigestScheduler();
+      startMonthlySummaryScheduler();
       app.listen(PORT, () => {
         console.log(`Server running on port ${PORT}`);
       });

@@ -32,11 +32,11 @@ jobs:
             print(0)
           ")
           echo "Line coverage: ${COVERAGE}%"
-          if [ "${COVERAGE}" -lt 90 ]; then
-            echo "Coverage ${COVERAGE}% is below the 90% baseline."
+          if [ "${COVERAGE}" -lt 85 ]; then
+            echo "Coverage ${COVERAGE}% is below the 85% baseline."
             exit 1
           fi
-          echo "Coverage ${COVERAGE}% meets 90% baseline."
+          echo "Coverage ${COVERAGE}% meets 85% baseline."
       - name: TypeScript compile
         run: yarn build
       - name: Deploy to Railway

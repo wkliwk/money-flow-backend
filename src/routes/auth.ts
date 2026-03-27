@@ -2,6 +2,7 @@ import { Router, Request, Response } from 'express';
 import jwt from 'jsonwebtoken';
 import { body, validationResult } from 'express-validator';
 import { OAuth2Client } from 'google-auth-library';
+import appleSignin from 'apple-signin-auth';
 import UserModel from '../models/User';
 
 const router = Router();
@@ -123,6 +124,59 @@ router.post(
       res.json({ token });
     } catch {
       res.status(401).json({ error: 'Google authentication failed' });
+    }
+  }
+);
+
+// POST /auth/apple
+router.post(
+  '/apple',
+  [body('idToken').notEmpty()],
+  async (req: Request, res: Response) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      res.status(400).json({ error: 'idToken is required' });
+      return;
+    }
+
+    try {
+      const { idToken } = req.body as { idToken: string };
+      const clientId = process.env.APPLE_CLIENT_ID;
+      if (!clientId) {
+        res.status(500).json({ error: 'Apple Sign-In not configured' });
+        return;
+      }
+
+      const payload = await appleSignin.verifyIdToken(idToken, {
+        audience: clientId,
+      });
+
+      const { email, sub: appleId } = payload;
+      if (!email) {
+        res.status(401).json({ error: 'Invalid Apple token' });
+        return;
+      }
+
+      let user = await UserModel.findOne({
+        $or: [{ appleId }, { email: email.toLowerCase() }],
+      });
+
+      if (user) {
+        if (!user.appleId) {
+          user.appleId = appleId;
+          await user.save();
+        }
+      } else {
+        user = await UserModel.create({
+          email: email.toLowerCase(),
+          appleId,
+        });
+      }
+
+      const token = signToken(user.id as string);
+      res.json({ token });
+    } catch {
+      res.status(401).json({ error: 'Apple authentication failed' });
     }
   }
 );

@@ -69,6 +69,58 @@ describe('GET /api/expenses', () => {
     expect(res.body.page).toBe(2);
     expect(res.body.data).toHaveLength(1);
   });
+
+  it('returns pagination object in response', async () => {
+    await createExpense();
+    const res = await request(app)
+      .get('/api/expenses')
+      .set('Authorization', `Bearer ${authToken}`);
+    expect(res.body.pagination).toBeDefined();
+    expect(res.body.pagination.page).toBe(1);
+    expect(res.body.pagination.limit).toBe(50);
+    expect(res.body.pagination.total).toBe(1);
+    expect(res.body.pagination.totalPages).toBe(1);
+  });
+
+  it('caps limit at 200', async () => {
+    await createExpense();
+    const res = await request(app)
+      .get('/api/expenses?limit=500')
+      .set('Authorization', `Bearer ${authToken}`);
+    expect(res.body.pagination.limit).toBe(200);
+  });
+
+  it('sorts by amount ascending', async () => {
+    await createExpense({ amount: 300, description: 'Expensive' });
+    await createExpense({ amount: 50, description: 'Cheap' });
+    await createExpense({ amount: 150, description: 'Medium' });
+    const res = await request(app)
+      .get('/api/expenses?sort=amount&order=asc')
+      .set('Authorization', `Bearer ${authToken}`);
+    expect(res.body.data[0].amount).toBe(50);
+    expect(res.body.data[1].amount).toBe(150);
+    expect(res.body.data[2].amount).toBe(300);
+  });
+
+  it('sorts by amount descending', async () => {
+    await createExpense({ amount: 300, description: 'Expensive' });
+    await createExpense({ amount: 50, description: 'Cheap' });
+    await createExpense({ amount: 150, description: 'Medium' });
+    const res = await request(app)
+      .get('/api/expenses?sort=amount&order=desc')
+      .set('Authorization', `Bearer ${authToken}`);
+    expect(res.body.data[0].amount).toBe(300);
+    expect(res.body.data[2].amount).toBe(50);
+  });
+
+  it('ignores invalid sort fields', async () => {
+    await createExpense();
+    const res = await request(app)
+      .get('/api/expenses?sort=invalid')
+      .set('Authorization', `Bearer ${authToken}`);
+    expect(res.status).toBe(200);
+    expect(res.body.data).toHaveLength(1);
+  });
 });
 
 describe('GET /api/expenses/:id', () => {

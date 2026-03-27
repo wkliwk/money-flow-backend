@@ -15,6 +15,7 @@ import reportRoutes from './routes/reports';
 import exchangeRateRoutes from './routes/exchange-rates';
 import userRoutes from './routes/users';
 import receiptRoutes from './routes/receipts';
+import templateRoutes from './routes/templates';
 import { startAlertScheduler } from './jobs/processAlerts';
 import { startRecurringScheduler } from './jobs/processRecurring';
 import { startWeeklyDigestScheduler } from './jobs/weeklyDigest';
@@ -54,6 +55,7 @@ app.use('/api/reports', reportRoutes);
 app.use('/api/exchange-rates', exchangeRateRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/receipts', receiptRoutes);
+app.use('/api/templates', templateRoutes);
 
 Sentry.setupExpressErrorHandler(app);
 

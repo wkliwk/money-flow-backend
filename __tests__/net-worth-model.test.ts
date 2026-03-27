@@ -44,5 +44,40 @@ describe('NetWorthModel', () => {
 
     expect(doc.netWorth).toBe(0);
   });
+
+  it('calculates netWorth with partial assets and undefined liabilities', async () => {
+    const doc = await NetWorthModel.create({
+      userId: TEST_USER_ID,
+      date: new Date('2026-01-03T00:00:00.000Z'),
+      assets: { cash: 5000, investments: undefined, property: undefined, other: undefined },
+      liabilities: undefined,
+    });
+
+    expect(doc.netWorth).toBe(5000); // 5000 - (0 + 0 + 0)
+  });
+
+  it('calculates netWorth with only liabilities', async () => {
+    const doc = await NetWorthModel.create({
+      userId: TEST_USER_ID,
+      date: new Date('2026-01-04T00:00:00.000Z'),
+      assets: { cash: 0, investments: 0, property: 0, other: 0 },
+      liabilities: { loans: 1000, creditCardDebt: 2000, other: 500 },
+    });
+
+    expect(doc.netWorth).toBe(-3500); // 0 - (1000 + 2000 + 500)
+  });
+
+  it('calculates netWorth using .save() method (pre-save hook)', async () => {
+    const doc = new NetWorthModel({
+      userId: TEST_USER_ID,
+      date: new Date('2026-01-05T00:00:00.000Z'),
+      assets: { cash: 50000 },
+      liabilities: { loans: 10000 },
+    });
+
+    await doc.save();
+
+    expect(doc.netWorth).toBe(40000); // 50000 - 10000
+  });
 });
 

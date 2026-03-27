@@ -124,6 +124,72 @@ describe('GET /api/export/csv', () => {
     expect(res.text).not.toContain('TooNew');
   });
 
+  it('respects from filter only (no to filter)', async () => {
+    await createExpense({
+      description: 'Before',
+      date: '2025-12-01T00:00:00.000Z',
+    });
+    await createExpense({
+      description: 'After',
+      date: '2026-01-20T00:00:00.000Z',
+    });
+
+    const res = await request(app)
+      .get('/api/export/csv?from=2026-01-01')
+      .set('Authorization', `Bearer ${authToken}`);
+
+    expect(res.status).toBe(200);
+    expect(res.text).not.toContain('Before');
+    expect(res.text).toContain('After');
+  });
+
+  it('respects to filter only (no from filter)', async () => {
+    await createExpense({
+      description: 'Old',
+      date: '2025-12-01T00:00:00.000Z',
+    });
+    await createExpense({
+      description: 'New',
+      date: '2026-02-05T00:00:00.000Z',
+    });
+
+    const res = await request(app)
+      .get('/api/export/csv?to=2026-01-31')
+      .set('Authorization', `Bearer ${authToken}`);
+
+    expect(res.status).toBe(200);
+    expect(res.text).toContain('Old');
+    expect(res.text).not.toContain('New');
+  });
+
+  it('combines type filter with date filters', async () => {
+    await createExpense({
+      description: 'Old Expense',
+      type: 'expense',
+      date: '2025-12-01T00:00:00.000Z',
+    });
+    await createExpense({
+      description: 'Jan Salary',
+      type: 'income',
+      amount: 5000,
+      date: '2026-01-20T00:00:00.000Z',
+    });
+    await createExpense({
+      description: 'Jan Expense',
+      type: 'expense',
+      date: '2026-01-25T00:00:00.000Z',
+    });
+
+    const res = await request(app)
+      .get('/api/export/csv?type=expense&from=2026-01-01&to=2026-01-31')
+      .set('Authorization', `Bearer ${authToken}`);
+
+    expect(res.status).toBe(200);
+    expect(res.text).not.toContain('Old Expense');
+    expect(res.text).not.toContain('Jan Salary');
+    expect(res.text).toContain('Jan Expense');
+  });
+
   it('returns 500 when ExpenseModel.find throws', async () => {
     const spy = jest.spyOn(ExpenseModel, 'find').mockImplementationOnce(() => {
       throw new Error('db fail');

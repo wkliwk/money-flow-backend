@@ -14,6 +14,7 @@ export interface IUser extends Document {
   email: string;
   password?: string;
   googleId?: string;
+  appleId?: string;
   budgets: IBudget[];
   telegramChatId?: string;
   weeklyDigestEnabled: boolean;
@@ -27,6 +28,7 @@ const UserSchema = new mongoose.Schema(
     email: { type: String, required: true, unique: true, lowercase: true, trim: true },
     password: { type: String, minlength: 6 },
     googleId: { type: String, sparse: true },
+    appleId: { type: String, sparse: true },
     budgets: {
       type: [
         {

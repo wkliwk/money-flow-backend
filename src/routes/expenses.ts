@@ -74,11 +74,107 @@ const expenseValidation = [
   paymentMethodValidation,
 ];
 
-// GET /api/expenses with pagination
+// GET /api/expenses/analytics
+router.get('/analytics', async (req: AuthRequest, res: Response) => {
+  try {
+    const monthParam = req.query.month as string | undefined;
+    let year: number;
+    let month: number;
+
+    if (monthParam) {
+      if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(monthParam)) {
+        res.status(400).json({ error: 'month must be in YYYY-MM format' });
+        return;
+      }
+      [year, month] = monthParam.split('-').map(Number);
+    } else {
+      const now = new Date();
+      year = now.getFullYear();
+      month = now.getMonth() + 1;
+    }
+
+    const startDate = new Date(year, month - 1, 1);
+    const endDate = new Date(year, month, 1);
+
+    const matchStage = {
+      $match: {
+        owner: req.userId,
+        date: { $gte: startDate, $lt: endDate },
+      },
+    };
+
+    const [summaryResult, categoryResult, dailyResult] = await Promise.all([
+      ExpenseModel.aggregate([
+        matchStage,
+        {
+          $group: {
+            _id: '$type',
+            total: { $sum: '$amount' },
+          },
+        },
+      ]),
+      ExpenseModel.aggregate([
+        matchStage,
+        { $match: { type: 'expense' } },
+        {
+          $group: {
+            _id: '$category',
+            total: { $sum: '$amount' },
+            count: { $sum: 1 },
+          },
+        },
+        { $sort: { total: -1 } },
+      ]),
+      ExpenseModel.aggregate([
+        matchStage,
+        {
+          $group: {
+            _id: {
+              date: { $dateToString: { format: '%Y-%m-%d', date: '$date' } },
+              type: '$type',
+            },
+            total: { $sum: '$amount' },
+          },
+        },
+        { $sort: { '_id.date': 1 } },
+      ]),
+    ]);
+
+    const totalIncome = summaryResult.find((r) => r._id === 'income')?.total ?? 0;
+    const totalExpense = summaryResult.find((r) => r._id === 'expense')?.total ?? 0;
+    const netBalance = totalIncome - totalExpense;
+
+    const grandExpenseTotal = categoryResult.reduce((sum: number, c: { total: number }) => sum + c.total, 0);
+    const categoryBreakdown = categoryResult.map((c: { _id: string | null; total: number; count: number }) => ({
+      category: c._id ?? 'Uncategorised',
+      total: c.total,
+      count: c.count,
+      percentage: grandExpenseTotal > 0 ? Math.round((c.total / grandExpenseTotal) * 10000) / 100 : 0,
+    }));
+
+    const dailyMap = new Map<string, { income: number; expense: number }>();
+    for (const row of dailyResult) {
+      const date: string = row._id.date;
+      if (!dailyMap.has(date)) dailyMap.set(date, { income: 0, expense: 0 });
+      const entry = dailyMap.get(date)!;
+      if (row._id.type === 'income') entry.income += row.total;
+      else if (row._id.type === 'expense') entry.expense += row.total;
+    }
+    const dailyTotals = Array.from(dailyMap.entries())
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([date, totals]) => ({ date, ...totals }));
+
+    res.json({ totalIncome, totalExpense, netBalance, categoryBreakdown, dailyTotals });
+  } catch {
+    res.status(500).json({ error: 'Failed to fetch analytics' });
+  }
+});
+
+// GET /api/expenses with pagination and sorting
 router.get('/', async (req: AuthRequest, res: Response) => {
   try {
     const page = Math.max(1, parseInt(req.query.page as string) || 1);
-    const limit = Math.min(100, Math.max(1, parseInt(req.query.limit as string) || 20));
+    const limit = Math.min(200, Math.max(1, parseInt(req.query.limit as string) || 50));
     const skip = (page - 1) * limit;
 
     const filter: Record<string, unknown> = { owner: req.userId };
@@ -91,17 +187,30 @@ router.get('/', async (req: AuthRequest, res: Response) => {
       filter.paymentMethod = paymentMethodQuery;
     }
 
+    const allowedSortFields = ['createdAt', 'amount', 'date'];
+    const sortField = allowedSortFields.includes(req.query.sort as string)
+      ? (req.query.sort as string)
+      : 'createdAt';
+    const sortOrder = req.query.order === 'asc' ? 1 : -1;
+    const sortObj: Record<string, 1 | -1> = { [sortField]: sortOrder };
+    if (sortField !== 'createdAt') sortObj.createdAt = -1;
+
     const [expenses, total] = await Promise.all([
       ExpenseModel.find(filter)
-        .sort({ date: -1, createdAt: -1 })
+        .sort(sortObj)
         .skip(skip)
         .limit(limit)
         .lean(),
       ExpenseModel.countDocuments(filter),
     ]);
 
-    const pages = Math.ceil(total / limit);
-    res.json({ data: expenses, total, page, pages });
+    const totalPages = Math.ceil(total / limit);
+    res.json({
+      data: expenses,
+      pagination: { page, limit, total, totalPages },
+      // Backward compat
+      total, page, pages: totalPages,
+    });
   } catch {
     res.status(500).json({ error: 'Failed to fetch expenses' });
   }

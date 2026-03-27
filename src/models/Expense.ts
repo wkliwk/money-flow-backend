@@ -7,6 +7,7 @@ const PAYMENT_METHODS = [
   'octopus',
   'payme',
   'fps',
+  'bank_transfer',
   'alipay_hk',
   'wechat_pay',
   'other',

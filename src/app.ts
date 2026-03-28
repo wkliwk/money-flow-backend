@@ -10,6 +10,7 @@ import budgetRoutes from './routes/budgets';
 import transactionRoutes from './routes/transactions';
 import recurringRoutes from './routes/recurring';
 import goalRoutes from './routes/goals';
+import templateRoutes from './routes/templates';
 
 dotenv.config();
 
@@ -33,6 +34,7 @@ app.use('/api/budgets', budgetRoutes);
 app.use('/api/transactions', transactionRoutes);
 app.use('/api/recurring', recurringRoutes);
 app.use('/api/goals', goalRoutes);
+app.use('/api/templates', templateRoutes);
 
 Sentry.setupExpressErrorHandler(app);
 

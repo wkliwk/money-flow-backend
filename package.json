@@ -6,6 +6,7 @@
   "author": "rickyli <ricky.li@crypto.com>",
   "license": "MIT",
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.80.0",
     "@sentry/node": "^10.45.0",
     "@types/bcryptjs": "^2.4.6",
     "@types/cors": "^2.8.14",

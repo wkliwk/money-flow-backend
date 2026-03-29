@@ -19,6 +19,7 @@ import templateRoutes from './routes/templates';
 import friendRoutes from './routes/friends';
 import jobRoutes from './routes/jobs';
 import itemPriceRoutes from './routes/item-prices';
+import accountRoutes from './routes/accounts';
 import { startAlertScheduler } from './jobs/processAlerts';
 import { startRecurringScheduler } from './jobs/processRecurring';
 import { startWeeklyDigestScheduler } from './jobs/weeklyDigest';
@@ -63,6 +64,7 @@ app.use('/api/templates', templateRoutes);
 app.use('/api/friends', friendRoutes);
 app.use('/api/jobs', jobRoutes);
 app.use('/api/item-prices', itemPriceRoutes);
+app.use('/api/accounts', accountRoutes);
 
 Sentry.setupExpressErrorHandler(app);
 

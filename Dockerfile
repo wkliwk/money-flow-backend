@@ -1,5 +1,5 @@
 # ---- Base ----
-FROM node:20-alpine AS base
+FROM node:22-alpine AS base
 WORKDIR /app
 COPY package.json package-lock.json ./
 
@@ -13,16 +13,16 @@ CMD ["npx", "nodemon", "--exec", "npx ts-node ./src/app.ts", "--watch", "src", "
 
 # ---- Build ----
 FROM base AS build
-RUN npm ci
+RUN npm install --legacy-peer-deps
 COPY tsconfig.json ./
 COPY src ./src
 RUN npx tsc
 
 # ---- Production ----
-FROM node:20-alpine AS prod
+FROM node:22-alpine AS prod
 WORKDIR /app
 COPY package.json package-lock.json ./
-RUN npm ci --omit=dev
+RUN npm install --omit=dev --legacy-peer-deps
 COPY --from=build /app/dist ./dist
 EXPOSE 3001
 CMD ["node", "dist/app.js"]

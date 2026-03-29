@@ -41,6 +41,7 @@ jobs:
         run: yarn build
       - name: Deploy to Railway
         if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+        continue-on-error: true
         run: |
           npm install -g @railway/cli
           railway up --detach

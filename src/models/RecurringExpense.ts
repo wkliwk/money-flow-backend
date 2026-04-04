@@ -11,6 +11,10 @@ export interface IRecurringExpense extends Document {
   end_date?: Date;
   frequency: RecurringFrequency;
   description?: string;
+  nextDueDate: Date;
+  lastProcessedDate?: Date;
+  processedUntil?: Date;
+  active: boolean;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -29,17 +33,25 @@ const RecurringExpenseSchema = new mongoose.Schema(
       required: true,
     },
     description: { type: String },
+    nextDueDate: { type: Date, index: true },
+    lastProcessedDate: { type: Date },
+    processedUntil: { type: Date },
+    active: { type: Boolean, default: true },
   },
   { timestamps: true }
 );
 
-// Validate that end_date (if set) is after start_date
+// Validate that end_date (if set) is after start_date, and set nextDueDate on creation
 RecurringExpenseSchema.pre('save', function (next) {
   if (this.end_date && this.start_date > this.end_date) {
     next(new Error('end_date must be after start_date'));
-  } else {
-    next();
+    return;
   }
+  // Set nextDueDate to start_date if not already set
+  if (!this.nextDueDate) {
+    this.nextDueDate = this.start_date;
+  }
+  next();
 });
 
 export const RecurringExpenseModel = mongoose.model<IRecurringExpense>(

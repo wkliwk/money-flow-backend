@@ -1,6 +1,18 @@
 import RecurringExpenseModel, { RecurringFrequency, IRecurringExpense } from '../models/RecurringExpense';
 import ExpenseModel from '../models/Expense';
 
+export interface ProcessingResult {
+  processed: number;
+  expensesCreated: number;
+  errors: number;
+  details: Array<{
+    recurringId: string;
+    name: string;
+    expensesCreated: number;
+    error?: string;
+  }>;
+}
+
 /**
  * Calculate the next occurrence date for a recurring expense based on frequency
  */
@@ -18,8 +30,9 @@ export function calculateNextOccurrence(date: Date, frequency: RecurringFrequenc
     case 'MONTHLY': {
       const year = next.getFullYear();
       const month = next.getMonth();
-      // Add one month and keep the same day, but cap at the last day of month
       const lastDayOfNextMonth = new Date(year, month + 2, 0).getDate();
+      // Set date to 1 first to avoid overflow when setting month
+      next.setDate(1);
       next.setMonth(month + 1);
       next.setDate(Math.min(originalDay, lastDayOfNextMonth));
       break;
@@ -27,8 +40,9 @@ export function calculateNextOccurrence(date: Date, frequency: RecurringFrequenc
     case 'QUARTERLY': {
       const year = next.getFullYear();
       const month = next.getMonth();
-      // Add 3 months and keep the same day, but cap at the last day of month
       const lastDayOfTargetMonth = new Date(year, month + 4, 0).getDate();
+      // Set date to 1 first to avoid overflow when setting month
+      next.setDate(1);
       next.setMonth(month + 3);
       next.setDate(Math.min(originalDay, lastDayOfTargetMonth));
       break;
@@ -42,95 +56,160 @@ export function calculateNextOccurrence(date: Date, frequency: RecurringFrequenc
 }
 
 /**
- * Check if a recurring expense should generate a transaction today
+ * Normalize a date to midnight UTC for consistent comparison
  */
-function shouldGenerateTransaction(
-  recurring: IRecurringExpense,
-  lastGenerated?: Date
-): boolean {
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-
-  const startDate = new Date(recurring.start_date);
-  startDate.setHours(0, 0, 0, 0);
-
-  // Not started yet
-  if (startDate > today) {
-    return false;
-  }
-
-  // Already expired
-  if (recurring.end_date) {
-    const endDate = new Date(recurring.end_date);
-    endDate.setHours(0, 0, 0, 0);
-    if (endDate < today) {
-      return false;
-    }
-  }
-
-  // If no last generated, check if start date is today or past
-  if (!lastGenerated) {
-    return startDate <= today;
-  }
-
-  // Check if next occurrence is today or past
-  const lastGenDate = new Date(lastGenerated);
-  lastGenDate.setHours(0, 0, 0, 0);
-  const nextOccurrence = calculateNextOccurrence(lastGenDate, recurring.frequency);
-  nextOccurrence.setHours(0, 0, 0, 0);
-
-  return nextOccurrence <= today;
+function toMidnight(date: Date): Date {
+  const d = new Date(date);
+  d.setHours(0, 0, 0, 0);
+  return d;
 }
 
 /**
- * Process all recurring expenses and generate transactions for today
- * Called daily by the cron job
+ * Process a single recurring expense, creating all missed expenses up to today.
+ * Uses processedUntil to guarantee idempotency -- if the job runs twice,
+ * no duplicate expenses are created.
  */
-export async function processRecurringExpenses(): Promise<void> {
-  try {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+async function processSingleRecurring(
+  recurring: IRecurringExpense
+): Promise<{ expensesCreated: number }> {
+  const now = new Date();
+  const today = toMidnight(now);
+  let expensesCreated = 0;
 
-    const recurringExpenses = await RecurringExpenseModel.find({
-      start_date: { $lte: today },
-      $or: [{ end_date: { $exists: false } }, { end_date: { $gte: today } }],
+  // Determine the starting point for generating expenses.
+  // If processedUntil exists, we start from there (already processed up to that date).
+  // Otherwise, start from start_date (first occurrence).
+  let cursor: Date;
+  if (recurring.processedUntil) {
+    // processedUntil marks the last date we created an expense for,
+    // so advance to the next occurrence from there
+    cursor = calculateNextOccurrence(new Date(recurring.processedUntil), recurring.frequency);
+  } else {
+    // Never processed: first expense should be on start_date
+    cursor = toMidnight(new Date(recurring.start_date));
+  }
+
+  // Cap at end_date if set
+  const endDate = recurring.end_date ? toMidnight(new Date(recurring.end_date)) : null;
+
+  // Generate all missed expenses up to today
+  // Safety: cap at 365 iterations to prevent runaway loops
+  let iterations = 0;
+  const MAX_ITERATIONS = 365;
+
+  while (toMidnight(cursor) <= today && iterations < MAX_ITERATIONS) {
+    // Stop if past end_date
+    if (endDate && toMidnight(cursor) > endDate) {
+      break;
+    }
+
+    // Create the expense entry
+    await ExpenseModel.create({
+      owner: recurring.userId,
+      description: recurring.description
+        ? `${recurring.name} - ${recurring.description}`
+        : recurring.name,
+      amount: recurring.amount,
+      category: recurring.category || undefined,
+      type: 'expense',
+      date: new Date(cursor),
     });
 
-    for (const recurring of recurringExpenses) {
-      try {
-        // Find the most recent generated expense for this recurring item
-        const lastGenerated = await ExpenseModel.findOne(
-          {
-            owner: recurring.userId,
-            description: recurring.name,
-            category: recurring.category,
-            amount: recurring.amount,
-            type: 'expense',
-          },
-          { createdAt: 1 },
-          { sort: { createdAt: -1 } }
-        ).lean();
+    expensesCreated++;
 
-        // Check if we should generate a new transaction
-        if (shouldGenerateTransaction(recurring, lastGenerated?.createdAt as Date)) {
-          // Create the expense
-          await ExpenseModel.create({
-            owner: recurring.userId,
-            description: recurring.name,
-            amount: recurring.amount,
-            category: recurring.category,
-            type: 'expense',
-            date: today,
-            notes: `Auto-generated from recurring: ${recurring.name}`,
-          });
-        }
-      } catch (error) {
-        console.error(`Error processing recurring expense ${recurring._id}:`, error);
+    // Update processedUntil atomically to ensure idempotency
+    await RecurringExpenseModel.updateOne(
+      { _id: recurring._id },
+      {
+        $set: {
+          processedUntil: new Date(cursor),
+          lastProcessedDate: now,
+          nextDueDate: calculateNextOccurrence(new Date(cursor), recurring.frequency),
+        },
       }
-    }
-  } catch (error) {
-    console.error('Error processing recurring expenses:', error);
+    );
+
+    // Advance cursor
+    cursor = calculateNextOccurrence(new Date(cursor), recurring.frequency);
+    iterations++;
   }
+
+  return { expensesCreated };
+}
+
+/**
+ * Process all due recurring expenses.
+ * Idempotent: uses processedUntil to track what's been generated.
+ * Back-creates missed expenses if the server was down.
+ */
+export async function processRecurringExpenses(): Promise<ProcessingResult> {
+  const result: ProcessingResult = {
+    processed: 0,
+    expensesCreated: 0,
+    errors: 0,
+    details: [],
+  };
+
+  const today = toMidnight(new Date());
+
+  // Find all active recurring expenses that are due.
+  // A recurring expense is due if:
+  // 1. It has nextDueDate <= today, OR
+  // 2. It has no processedUntil and start_date <= today (legacy/new records)
+  const recurringExpenses = await RecurringExpenseModel.find({
+    active: { $ne: false },
+    start_date: { $lte: today },
+    $and: [
+      {
+        $or: [
+          { end_date: { $exists: false } },
+          { end_date: null },
+          { end_date: { $gte: today } },
+        ],
+      },
+      {
+        $or: [
+          { nextDueDate: { $lte: today } },
+          { nextDueDate: { $exists: false } },
+          { processedUntil: { $exists: false }, start_date: { $lte: today } },
+        ],
+      },
+    ],
+  });
+
+  for (const recurring of recurringExpenses) {
+    try {
+      const { expensesCreated } = await processSingleRecurring(recurring);
+      result.processed++;
+      result.expensesCreated += expensesCreated;
+      result.details.push({
+        recurringId: String(recurring._id),
+        name: recurring.name,
+        expensesCreated,
+      });
+
+      if (expensesCreated > 0) {
+        console.log(
+          `[RecurringProcessor] Created ${expensesCreated} expense(s) for "${recurring.name}" (${recurring._id})`
+        );
+      }
+    } catch (error) {
+      result.errors++;
+      const message = error instanceof Error ? error.message : String(error);
+      result.details.push({
+        recurringId: String(recurring._id),
+        name: recurring.name,
+        expensesCreated: 0,
+        error: message,
+      });
+      console.error(
+        `[RecurringProcessor] Error processing "${recurring.name}" (${recurring._id}):`,
+        error
+      );
+    }
+  }
+
+  return result;
 }
 
 /**

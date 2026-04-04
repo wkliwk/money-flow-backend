@@ -1,10 +1,35 @@
-import { Router, Response } from 'express';
+import { Router, Request, Response } from 'express';
 import { body, validationResult } from 'express-validator';
 import RecurringExpenseModel from '../models/RecurringExpense';
 import { protect, AuthRequest } from '../middleware/auth';
 import { validateRecurringData } from '../utils/recurring';
+import { processRecurringJob } from '../jobs/processRecurring';
 
 const router = Router();
+
+// POST /api/recurring/process - manually trigger recurring expense processing
+// Protected by JOBS_API_KEY header (same as other job endpoints)
+router.post('/process', async (req: Request, res: Response) => {
+  const apiKey = process.env.JOBS_API_KEY;
+  if (!apiKey) {
+    res.status(503).json({ error: 'Jobs API key not configured' });
+    return;
+  }
+  const provided = req.headers['x-api-key'];
+  if (!provided || provided !== apiKey) {
+    res.status(401).json({ error: 'Unauthorized' });
+    return;
+  }
+
+  const start = Date.now();
+  try {
+    const result = await processRecurringJob();
+    res.json({ ok: true, durationMs: Date.now() - start, ...result });
+  } catch (error) {
+    console.error('[POST /api/recurring/process] Error:', error);
+    res.status(500).json({ error: 'Recurring processing job failed' });
+  }
+});
 
 router.use(protect);
 

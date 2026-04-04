@@ -223,7 +223,7 @@ describe('Recurring Expenses', () => {
     // Check if transaction was created
     const expenses = await ExpenseModel.find({ owner: testUserId });
     expect(expenses.length).toBeGreaterThan(0);
-    const transaction = expenses.find((e) => e.description === 'Daily Coffee');
+    const transaction = expenses.find((e) => e.description?.includes('Daily Coffee'));
     expect(transaction).toBeDefined();
     expect(transaction?.amount).toBe(5);
   });

@@ -29,10 +29,12 @@ beforeEach(async () => {
 describe('processRecurringJob', () => {
   it('completes successfully with no recurring expenses', async () => {
     const consoleSpy = jest.spyOn(console, 'log').mockImplementation();
-    await processRecurringJob();
+    const result = await processRecurringJob();
     expect(consoleSpy).toHaveBeenCalledWith(
-      expect.stringContaining('[RecurringJob] Processed recurring expenses in')
+      expect.stringContaining('[RecurringJob] Processed')
     );
+    expect(result.processed).toBe(0);
+    expect(result.expensesCreated).toBe(0);
     consoleSpy.mockRestore();
   });
 

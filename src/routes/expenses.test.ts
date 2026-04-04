@@ -131,7 +131,8 @@ describe('Expenses API', () => {
         .set('Authorization', `Bearer ${token}`);
 
       expect(getResponse.status).toBe(200);
-      const expense = getResponse.body.find((e: any) => e._id === expenseId);
+      const expenses = getResponse.body.data || getResponse.body;
+      const expense = expenses.find((e: Record<string, unknown>) => e._id === expenseId);
       expect(expense).toBeDefined();
       expect(expense.participants).toBeDefined();
       expect(expense.participants).toEqual(['Alice', 'Bob', 'Charlie']);

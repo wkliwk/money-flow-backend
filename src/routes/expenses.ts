@@ -12,11 +12,68 @@ const expenseValidation = [
   body('amount').isNumeric().withMessage('Amount must be a number'),
 ];
 
-// GET /api/expenses
+// GET /api/expenses — with pagination, sorting, and filters
 router.get('/', async (req: AuthRequest, res: Response) => {
   try {
-    const expenses = await ExpenseModel.find({ owner: req.userId }).sort({ date: -1, createdAt: -1 }).lean();
-    res.json(expenses);
+    const page = Math.max(1, parseInt(req.query.page as string) || 1);
+    const limit = Math.min(200, Math.max(1, parseInt(req.query.limit as string) || 50));
+    const skip = (page - 1) * limit;
+
+    const filter: Record<string, unknown> = { owner: req.userId };
+
+    // Text search: case-insensitive substring match across description, category, item, participants
+    const q = typeof req.query.q === 'string' ? req.query.q.trim() : '';
+    if (q) {
+      const escaped = q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const regex = { $regex: escaped, $options: 'i' };
+      filter.$or = [
+        { description: regex },
+        { category: regex },
+        { item: regex },
+        { participants: regex },
+      ];
+    }
+
+    // Category filter (exact match)
+    const categoryQuery = typeof req.query.category === 'string' ? req.query.category.trim() : '';
+    if (categoryQuery) {
+      filter.category = categoryQuery;
+    }
+
+    // Amount range filter
+    const minAmount = parseFloat(req.query.minAmount as string);
+    const maxAmount = parseFloat(req.query.maxAmount as string);
+    if (!isNaN(minAmount) || !isNaN(maxAmount)) {
+      const amountFilter: Record<string, number> = {};
+      if (!isNaN(minAmount)) amountFilter.$gte = minAmount;
+      if (!isNaN(maxAmount)) amountFilter.$lte = maxAmount;
+      filter.amount = amountFilter;
+    }
+
+    // Sorting
+    const allowedSortFields = ['createdAt', 'amount', 'date'];
+    const sortField = allowedSortFields.includes(req.query.sort as string)
+      ? (req.query.sort as string)
+      : 'createdAt';
+    const sortOrder = req.query.order === 'asc' ? 1 : -1;
+    const sortObj: Record<string, 1 | -1> = { [sortField]: sortOrder };
+    if (sortField !== 'createdAt') sortObj.createdAt = -1;
+
+    const [expenses, total] = await Promise.all([
+      ExpenseModel.find(filter)
+        .sort(sortObj)
+        .skip(skip)
+        .limit(limit)
+        .lean(),
+      ExpenseModel.countDocuments(filter),
+    ]);
+
+    const totalPages = Math.ceil(total / limit);
+    res.json({
+      data: expenses,
+      pagination: { page, limit, total, totalPages },
+      total, page, pages: totalPages,
+    });
   } catch {
     res.status(500).json({ error: 'Failed to fetch expenses' });
   }

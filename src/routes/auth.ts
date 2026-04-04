@@ -1,11 +1,44 @@
 import { Router, Request, Response } from 'express';
 import jwt from 'jsonwebtoken';
 import { body, validationResult } from 'express-validator';
+import rateLimit from 'express-rate-limit';
 import { OAuth2Client } from 'google-auth-library';
 import appleSignin from 'apple-signin-auth';
 import UserModel from '../models/User';
 
 const router = Router();
+
+const rateLimitMessage = { error: 'Too many requests, please try again later' };
+
+const isTestWithoutRateLimit = (): boolean =>
+  process.env.NODE_ENV === 'test' && process.env.ENABLE_RATE_LIMIT !== 'true';
+
+export const loginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: rateLimitMessage,
+  skip: isTestWithoutRateLimit,
+});
+
+export const registerLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  limit: 5,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: rateLimitMessage,
+  skip: isTestWithoutRateLimit,
+});
+
+export const socialAuthLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 20,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: rateLimitMessage,
+  skip: isTestWithoutRateLimit,
+});
 
 const signToken = (userId: string): string =>
   jwt.sign({ userId }, process.env.JWT_SECRET as string, { expiresIn: '7d' });
@@ -13,6 +46,7 @@ const signToken = (userId: string): string =>
 // POST /auth/register
 router.post(
   '/register',
+  registerLimiter,
   [
     body('email').isEmail().normalizeEmail(),
     body('password').isLength({ min: 6 }),
@@ -43,6 +77,7 @@ router.post(
 // POST /auth/login
 router.post(
   '/login',
+  loginLimiter,
   [
     body('email').isEmail().normalizeEmail(),
     body('password').notEmpty(),
@@ -72,6 +107,7 @@ router.post(
 // POST /auth/google
 router.post(
   '/google',
+  socialAuthLimiter,
   [body('idToken').notEmpty()],
   async (req: Request, res: Response) => {
     const errors = validationResult(req);
@@ -131,6 +167,7 @@ router.post(
 // POST /auth/apple
 router.post(
   '/apple',
+  socialAuthLimiter,
   [body('idToken').notEmpty()],
   async (req: Request, res: Response) => {
     const errors = validationResult(req);

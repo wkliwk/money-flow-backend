@@ -44,6 +44,10 @@ app.get('/health', (_req, res) => {
   res.json({ status: 'ok', version });
 });
 
+app.get('/debug-sentry', (_req, _res) => {
+  throw new Error('Sentry test error — verify capture works');
+});
+
 app.get('/api/health', async (_req, res) => {
   const health = await getHealthStatus();
   const statusCode = health.status === 'healthy' ? 200 : 503;

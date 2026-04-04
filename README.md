@@ -56,3 +56,35 @@ npm run dev            # starts on PORT 3001
 | `npm run build` | Compile TypeScript |
 | `npm start` | Run compiled JS |
 | `npm test` | Run tests |
+
+## Monitoring & Observability
+
+### Sentry Error Tracking
+
+Sentry is wired up via `src/instrument.ts` and activates when `SENTRY_DSN` is set.
+
+**Setup:**
+1. Create a Node.js project at [sentry.io](https://sentry.io)
+2. Copy the DSN from Project Settings > Client Keys
+3. Add `SENTRY_DSN` to Railway environment variables
+4. Deploy and hit `GET /debug-sentry` to trigger a test error
+5. Confirm the error appears in the Sentry dashboard
+6. Remove or restrict `/debug-sentry` once verified (it is unprotected)
+
+**Configuration (in `src/instrument.ts`):**
+- `tracesSampleRate`: 20% in production, 100% in development
+- `sendDefaultPii`: disabled (no personal data sent)
+- `environment`: auto-detected from `NODE_ENV`
+
+### UptimeRobot Monitoring
+
+The `/health` endpoint returns `{"status":"ok"}` and is used for uptime monitoring.
+
+**Setup:**
+1. Sign up at [uptimerobot.com](https://uptimerobot.com) (free, no card needed)
+2. Add a new monitor:
+   - Type: **HTTPS**
+   - URL: `https://money-flow-backend-production.up.railway.app/health`
+   - Interval: **5 minutes**
+   - Alert contact: your email or Telegram
+3. Optionally add `/api/health` as a second monitor (checks DB connectivity too)

@@ -1,0 +1,100 @@
+name: Daily MongoDB Backup
+
+on:
+  schedule:
+    # Run daily at 03:00 UTC (14:00 AEST)
+    - cron: "0 3 * * *"
+  workflow_dispatch: {}
+
+env:
+  BACKUP_RETENTION_DAYS: 30
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install MongoDB tools
+        run: |
+          wget -qO- https://www.mongodb.org/static/pgp/server-7.0.asc | sudo gpg --dearmor -o /usr/share/keyrings/mongodb-server-7.0.gpg
+          echo "deb [ signed-by=/usr/share/keyrings/mongodb-server-7.0.gpg ] https://repo.mongodb.org/apt/ubuntu jammy/mongodb-org/7.0 multiverse" | sudo tee /etc/apt/sources.list.d/mongodb-org-7.0.list
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq mongodb-database-tools
+
+      - name: Run mongodump
+        env:
+          MONGODB_URI: ${{ secrets.MONGODB_URI }}
+        run: |
+          TIMESTAMP=$(date -u +"%Y-%m-%d_%H%M%S")
+          echo "TIMESTAMP=${TIMESTAMP}" >> $GITHUB_ENV
+          echo "BACKUP_FILE=money-flow-backup-${TIMESTAMP}.gz" >> $GITHUB_ENV
+
+          mongodump --uri="${MONGODB_URI}" --gzip --archive="money-flow-backup-${TIMESTAMP}.gz"
+
+          FILESIZE=$(stat -c%s "money-flow-backup-${TIMESTAMP}.gz")
+          echo "Backup size: $(numfmt --to=iec ${FILESIZE})"
+
+          if [ "${FILESIZE}" -lt 100 ]; then
+            echo "ERROR: Backup file suspiciously small (${FILESIZE} bytes). Aborting."
+            exit 1
+          fi
+
+      - name: Upload to Cloudflare R2
+        env:
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
+          R2_BUCKET: ${{ secrets.R2_BUCKET }}
+        run: |
+          # Install AWS CLI (R2 is S3-compatible)
+          sudo apt-get install -y -qq awscli
+
+          # Configure for R2
+          export AWS_ACCESS_KEY_ID="${R2_ACCESS_KEY_ID}"
+          export AWS_SECRET_ACCESS_KEY="${R2_SECRET_ACCESS_KEY}"
+
+          # Upload backup
+          aws s3 cp "${BACKUP_FILE}" \
+            "s3://${R2_BUCKET}/backups/${BACKUP_FILE}" \
+            --endpoint-url "${R2_ENDPOINT}"
+
+          echo "Uploaded ${BACKUP_FILE} to R2"
+
+      - name: Delete backups older than retention period
+        env:
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
+          R2_BUCKET: ${{ secrets.R2_BUCKET }}
+        run: |
+          export AWS_ACCESS_KEY_ID="${R2_ACCESS_KEY_ID}"
+          export AWS_SECRET_ACCESS_KEY="${R2_SECRET_ACCESS_KEY}"
+
+          CUTOFF_DATE=$(date -u -d "-${BACKUP_RETENTION_DAYS} days" +"%Y-%m-%d")
+          echo "Deleting backups older than ${CUTOFF_DATE}"
+
+          aws s3 ls "s3://${R2_BUCKET}/backups/" \
+            --endpoint-url "${R2_ENDPOINT}" | while read -r line; do
+            FILE_DATE=$(echo "$line" | awk '{print $1}')
+            FILE_NAME=$(echo "$line" | awk '{print $4}')
+            if [ -n "${FILE_NAME}" ] && [ "${FILE_DATE}" \< "${CUTOFF_DATE}" ]; then
+              echo "Deleting old backup: ${FILE_NAME}"
+              aws s3 rm "s3://${R2_BUCKET}/backups/${FILE_NAME}" \
+                --endpoint-url "${R2_ENDPOINT}"
+            fi
+          done
+
+      - name: Notify Telegram on success
+        if: success()
+        run: |
+          FILESIZE=$(stat -c%s "${BACKUP_FILE}")
+          SIZE_HR=$(numfmt --to=iec ${FILESIZE})
+          curl -sf -X POST "https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendMessage" \
+            -d chat_id="${{ secrets.TELEGRAM_CHAT_ID }}" \
+            -d text="DB backup complete: money-flow (${SIZE_HR}) -> R2 [${TIMESTAMP}]" || true
+
+      - name: Notify Telegram on failure
+        if: failure()
+        run: |
+          curl -sf -X POST "https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendMessage" \
+            -d chat_id="${{ secrets.TELEGRAM_CHAT_ID }}" \
+            -d text="DB backup FAILED: money-flow — check Actions log" || true

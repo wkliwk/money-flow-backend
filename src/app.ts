@@ -11,6 +11,7 @@ import transactionRoutes from './routes/transactions';
 import recurringRoutes from './routes/recurring';
 import goalRoutes from './routes/goals';
 import templateRoutes from './routes/templates';
+import exportRoutes from './routes/export';
 
 dotenv.config();
 
@@ -35,6 +36,7 @@ app.use('/api/transactions', transactionRoutes);
 app.use('/api/recurring', recurringRoutes);
 app.use('/api/goals', goalRoutes);
 app.use('/api/templates', templateRoutes);
+app.use('/api/export', exportRoutes);
 
 Sentry.setupExpressErrorHandler(app);
 

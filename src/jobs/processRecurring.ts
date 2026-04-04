@@ -1,17 +1,23 @@
-import { processRecurringExpenses } from '../utils/recurring';
+import { processRecurringExpenses, ProcessingResult } from '../utils/recurring';
 
 /**
- * Background job to process recurring expenses and generate transactions
- * Should be called daily
+ * Background job to process recurring expenses and generate transactions.
+ * Returns the processing result for use by the manual trigger endpoint.
  */
-export async function processRecurringJob(): Promise<void> {
+export async function processRecurringJob(): Promise<ProcessingResult> {
   const start = Date.now();
   try {
-    await processRecurringExpenses();
+    const result = await processRecurringExpenses();
     const duration = Date.now() - start;
-    console.log(`[RecurringJob] Processed recurring expenses in ${duration}ms`);
+    console.log(
+      `[RecurringJob] Processed ${result.processed} recurring expense(s), ` +
+      `created ${result.expensesCreated} expense(s), ` +
+      `${result.errors} error(s) in ${duration}ms`
+    );
+    return result;
   } catch (error) {
     console.error('[RecurringJob] Error processing recurring expenses:', error);
+    throw error;
   }
 }
 

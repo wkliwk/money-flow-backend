@@ -67,11 +67,11 @@ describe('calculateNextOccurrence', () => {
     expect(next.getDate()).toBe(15);
   });
 
-  it('handles MONTHLY with Jan 31 (setMonth overflow to March)', () => {
+  it('handles MONTHLY with Jan 31 (caps to Feb 28)', () => {
     const date = new Date(2026, 0, 31); // Jan 31
     const next = calculateNextOccurrence(date, 'MONTHLY');
-    // setMonth(1) on Jan 31 overflows to Mar 3, then setDate(28) gives Mar 28
-    expect(next.getMonth()).toBe(2); // March (due to JS Date overflow)
+    // Jan 31 + 1 month = Feb 28 (capped to last day of Feb)
+    expect(next.getMonth()).toBe(1); // February
     expect(next.getDate()).toBe(28);
   });
 
@@ -82,11 +82,11 @@ describe('calculateNextOccurrence', () => {
     expect(next.getDate()).toBe(15);
   });
 
-  it('handles QUARTERLY with Jan 31 (setMonth overflow to May)', () => {
+  it('handles QUARTERLY with Jan 31 (caps to Apr 30)', () => {
     const date = new Date(2026, 0, 31); // Jan 31
     const next = calculateNextOccurrence(date, 'QUARTERLY');
-    // setMonth(3) on Jan 31 overflows to May 1, then setDate(30) gives May 30
-    expect(next.getMonth()).toBe(4); // May
+    // Jan 31 + 3 months = Apr 30 (capped to last day of April)
+    expect(next.getMonth()).toBe(3); // April
     expect(next.getDate()).toBe(30);
   });
 });
@@ -284,10 +284,9 @@ describe('processRecurringExpenses', () => {
 
     const expenses = await ExpenseModel.find({
       owner: testUserId,
-      description: 'Daily Coffee',
     });
-    // Should only have 1 since shouldGenerateTransaction checks lastGenerated
-    expect(expenses.length).toBeLessThanOrEqual(2);
+    // Should only have 1 -- processedUntil ensures idempotency
+    expect(expenses).toHaveLength(1);
   });
 
   it('handles per-item errors gracefully', async () => {
@@ -311,7 +310,7 @@ describe('processRecurringExpenses', () => {
     await processRecurringExpenses();
 
     expect(errorSpy).toHaveBeenCalledWith(
-      expect.stringContaining('Error processing recurring expense'),
+      expect.stringContaining('[RecurringProcessor] Error processing'),
       expect.any(Error)
     );
     errorSpy.mockRestore();

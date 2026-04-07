@@ -41,7 +41,7 @@ interface IExpense extends Document {
   originalAmount?: number | null;
   exchangeRate?: number | null;
   paymentMethod?: PaymentMethod | null;
-  splitBill?: boolean;
+  splitBill?: boolean | string;
   createdAt?: Date;
   updatedAt?: Date;
 }
@@ -75,7 +75,7 @@ const ExpenseSchema = new mongoose.Schema(
       enum: [...PAYMENT_METHODS, null],
       default: null,
     },
-    splitBill: { type: Boolean, default: false },
+    splitBill: { type: mongoose.Schema.Types.Mixed, default: false },
   },
   { timestamps: true }
 );

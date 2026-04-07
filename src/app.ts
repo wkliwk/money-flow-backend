@@ -22,6 +22,7 @@ import itemPriceRoutes from './routes/item-prices';
 import accountRoutes from './routes/accounts';
 import insightRoutes from './routes/insights';
 import goalRoutes from './routes/goals';
+import transactionRoutes from './routes/transactions';
 import { startAlertScheduler } from './jobs/processAlerts';
 import { startRecurringScheduler } from './jobs/processRecurring';
 import { startWeeklyDigestScheduler } from './jobs/weeklyDigest';
@@ -73,6 +74,7 @@ app.use('/api/item-prices', itemPriceRoutes);
 app.use('/api/accounts', accountRoutes);
 app.use('/api/insights', insightRoutes);
 app.use('/api/goals', goalRoutes);
+app.use('/api/transactions', transactionRoutes);
 
 Sentry.setupExpressErrorHandler(app);
 

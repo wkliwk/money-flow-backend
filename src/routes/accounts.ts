@@ -15,8 +15,9 @@ router.get('/', async (req: AuthRequest, res: Response) => {
       .sort({ createdAt: -1 })
       .lean();
     res.json({ accounts });
-  } catch {
-    res.status(500).json({ error: 'Failed to fetch accounts' });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Failed to fetch accounts';
+    res.status(500).json({ error: message });
   }
 });
 
@@ -52,8 +53,9 @@ router.post(
         startingBalance: startingBalance ?? 0,
       });
       res.status(201).json({ account });
-    } catch {
-      res.status(500).json({ error: 'Failed to create account' });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to create account';
+      res.status(500).json({ error: message });
     }
   }
 );
@@ -89,8 +91,9 @@ router.put(
         return;
       }
       res.json({ account });
-    } catch {
-      res.status(500).json({ error: 'Failed to update account' });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to update account';
+      res.status(500).json({ error: message });
     }
   }
 );
@@ -116,8 +119,9 @@ router.delete('/:id', async (req: AuthRequest, res: Response) => {
     await AccountModel.deleteOne({ _id: req.params.id });
 
     res.json({ deleted: true, unlinkedTransactions: linkedCount });
-  } catch {
-    res.status(500).json({ error: 'Failed to delete account' });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Failed to delete account';
+    res.status(500).json({ error: message });
   }
 });
 

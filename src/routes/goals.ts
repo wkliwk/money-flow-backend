@@ -14,8 +14,9 @@ router.get('/', async (req: AuthRequest, res: Response) => {
       .sort({ createdAt: -1 })
       .lean();
     res.json({ goals });
-  } catch {
-    res.status(500).json({ error: 'Failed to fetch goals' });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Failed to fetch goals';
+    res.status(500).json({ error: message });
   }
 });
 
@@ -64,8 +65,9 @@ router.post(
         category,
       });
       res.status(201).json({ goal });
-    } catch {
-      res.status(500).json({ error: 'Failed to create goal' });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to create goal';
+      res.status(500).json({ error: message });
     }
   }
 );
@@ -109,8 +111,9 @@ router.put(
         return;
       }
       res.json({ goal });
-    } catch {
-      res.status(500).json({ error: 'Failed to update goal' });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to update goal';
+      res.status(500).json({ error: message });
     }
   }
 );
@@ -127,8 +130,9 @@ router.delete('/:id', async (req: AuthRequest, res: Response) => {
       return;
     }
     res.json({ deleted: true });
-  } catch {
-    res.status(500).json({ error: 'Failed to delete goal' });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Failed to delete goal';
+    res.status(500).json({ error: message });
   }
 });
 

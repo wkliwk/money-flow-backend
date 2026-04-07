@@ -50,8 +50,9 @@ router.get('/', async (req: AuthRequest, res: Response) => {
       start_date: 1,
     });
     res.json({ recurring });
-  } catch {
-    res.status(500).json({ error: 'Failed to fetch recurring expenses' });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Failed to fetch recurring expenses';
+    res.status(500).json({ error: message });
   }
 });
 
@@ -112,8 +113,9 @@ router.get('/:id', async (req: AuthRequest, res: Response) => {
     }
 
     res.json(recurring.toObject());
-  } catch {
-    res.status(500).json({ error: 'Failed to fetch recurring expense' });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Failed to fetch recurring expense';
+    res.status(500).json({ error: message });
   }
 });
 
@@ -182,8 +184,9 @@ router.delete('/:id', async (req: AuthRequest, res: Response) => {
     }
 
     res.json({ message: 'Recurring expense deleted' });
-  } catch {
-    res.status(500).json({ error: 'Failed to delete recurring expense' });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Failed to delete recurring expense';
+    res.status(500).json({ error: message });
   }
 });
 

@@ -17,8 +17,9 @@ router.get('/', async (req: AuthRequest, res: Response) => {
       return;
     }
     res.json({ budgets: user.budgets || [] });
-  } catch {
-    res.status(500).json({ error: 'Failed to fetch budgets' });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Failed to fetch budgets';
+    res.status(500).json({ error: message });
   }
 });
 
@@ -78,8 +79,9 @@ router.get('/summary', async (req: AuthRequest, res: Response) => {
     });
 
     res.json({ summary });
-  } catch {
-    res.status(500).json({ error: 'Failed to fetch budget summary' });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Failed to fetch budget summary';
+    res.status(500).json({ error: message });
   }
 });
 
@@ -113,8 +115,9 @@ router.post('/:category/alerts', [
     await user.save();
 
     res.json({ message: `Alerts ${enable_alerts ? 'enabled' : 'disabled'} for ${category}` });
-  } catch {
-    res.status(500).json({ error: 'Failed to update alert settings' });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Failed to update alert settings';
+    res.status(500).json({ error: message });
   }
 });
 
@@ -144,8 +147,9 @@ router.put(
 
       await UserModel.findByIdAndUpdate(req.userId, { $set: { budgets } });
       res.json({ budgets });
-    } catch {
-      res.status(500).json({ error: 'Failed to update budgets' });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to update budgets';
+      res.status(500).json({ error: message });
     }
   }
 );

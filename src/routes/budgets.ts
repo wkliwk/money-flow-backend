@@ -45,7 +45,7 @@ router.get('/summary', async (req: AuthRequest, res: Response) => {
     // Get expenses for current month grouped by category
     const expenses = await ExpenseModel.find(
       {
-        userId: req.userId,
+        owner: req.userId,
         type: 'expense',
         date: { $gte: monthStart, $lte: monthEnd },
       },

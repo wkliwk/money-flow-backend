@@ -73,8 +73,9 @@ router.get('/monthly', async (req: AuthRequest, res: Response) => {
     });
 
     res.json({ data });
-  } catch {
-    res.status(500).json({ error: 'Failed to fetch monthly report' });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Failed to fetch monthly report';
+    res.status(500).json({ error: message });
   }
 });
 
@@ -146,8 +147,9 @@ router.get('/budget-summary', async (req: AuthRequest, res: Response) => {
     const totalRemaining = totalBudgeted - totalSpent;
 
     res.json({ data, totalBudgeted, totalSpent, totalRemaining });
-  } catch {
-    res.status(500).json({ error: 'Failed to fetch budget summary' });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Failed to fetch budget summary';
+    res.status(500).json({ error: message });
   }
 });
 
@@ -158,8 +160,9 @@ router.post('/weekly-digest', async (req: AuthRequest, res: Response) => {
     const message = formatDigestMessage(data);
     const sent = await sendWeeklyDigestForUser(userId);
     res.json({ sent, digest: data, message });
-  } catch {
-    res.status(500).json({ error: 'Failed to generate weekly digest' });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Failed to generate weekly digest';
+    res.status(500).json({ error: message });
   }
 });
 

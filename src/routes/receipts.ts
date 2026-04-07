@@ -159,8 +159,9 @@ router.post('/scan', (req: Request, res: Response, next: NextFunction) => {
     const jsonMatch = rawText.match(/\{[\s\S]*\}/);
     if (!jsonMatch) throw new Error('No JSON found');
     extracted = JSON.parse(jsonMatch[0]);
-  } catch {
-    res.status(422).json({ error: 'Could not extract data from receipt' });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Could not extract data from receipt';
+    res.status(422).json({ error: message });
     return;
   }
 

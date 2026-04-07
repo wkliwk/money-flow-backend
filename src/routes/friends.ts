@@ -68,8 +68,9 @@ router.post(
       });
 
       res.status(201).json({ id: friendship._id, status: 'pending', email });
-    } catch {
-      res.status(500).json({ error: 'Failed to send friend request' });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to send friend request';
+      res.status(500).json({ error: message });
     }
   }
 );
@@ -97,8 +98,9 @@ router.get('/', async (req: AuthRequest, res: Response) => {
     });
 
     res.json({ friends });
-  } catch {
-    res.status(500).json({ error: 'Failed to fetch friends' });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Failed to fetch friends';
+    res.status(500).json({ error: message });
   }
 });
 
@@ -121,8 +123,9 @@ router.get('/pending', async (req: AuthRequest, res: Response) => {
     });
 
     res.json({ requests });
-  } catch {
-    res.status(500).json({ error: 'Failed to fetch pending requests' });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Failed to fetch pending requests';
+    res.status(500).json({ error: message });
   }
 });
 
@@ -143,8 +146,9 @@ router.post('/:id/accept', async (req: AuthRequest, res: Response) => {
     friendship.status = 'accepted';
     await friendship.save();
     res.json({ status: 'accepted' });
-  } catch {
-    res.status(500).json({ error: 'Failed to accept request' });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Failed to accept request';
+    res.status(500).json({ error: message });
   }
 });
 
@@ -164,8 +168,9 @@ router.post('/:id/reject', async (req: AuthRequest, res: Response) => {
 
     await friendship.deleteOne();
     res.json({ status: 'removed' });
-  } catch {
-    res.status(500).json({ error: 'Failed to reject request' });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Failed to reject request';
+    res.status(500).json({ error: message });
   }
 });
 
@@ -185,8 +190,9 @@ router.delete('/:id', async (req: AuthRequest, res: Response) => {
 
     await friendship.deleteOne();
     res.json({ status: 'removed' });
-  } catch {
-    res.status(500).json({ error: 'Failed to remove friend' });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Failed to remove friend';
+    res.status(500).json({ error: message });
   }
 });
 

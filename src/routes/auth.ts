@@ -79,8 +79,9 @@ router.post(
       const user = await UserModel.create({ email, password });
       const token = signToken(user.id as string);
       res.status(201).json({ token });
-    } catch {
-      res.status(500).json({ error: 'Registration failed' });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Registration failed';
+      res.status(500).json({ error: message });
     }
   }
 );
@@ -109,8 +110,9 @@ router.post(
       }
       const token = signToken(user.id as string);
       res.json({ token });
-    } catch {
-      res.status(500).json({ error: 'Login failed' });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Login failed';
+      res.status(500).json({ error: message });
     }
   }
 );
@@ -169,8 +171,9 @@ router.post(
 
       const token = signToken(user.id as string);
       res.json({ token });
-    } catch {
-      res.status(401).json({ error: 'Google authentication failed' });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Google authentication failed';
+      res.status(401).json({ error: message });
     }
   }
 );
@@ -223,8 +226,9 @@ router.post(
 
       const token = signToken(user.id as string);
       res.json({ token });
-    } catch {
-      res.status(401).json({ error: 'Apple authentication failed' });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Apple authentication failed';
+      res.status(401).json({ error: message });
     }
   }
 );
@@ -287,8 +291,9 @@ router.delete(
       ]);
 
       res.json({ message: 'Account and all data deleted' });
-    } catch {
-      res.status(500).json({ error: 'Account deletion failed' });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Account deletion failed';
+      res.status(500).json({ error: message });
     }
   }
 );

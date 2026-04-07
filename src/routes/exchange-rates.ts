@@ -11,8 +11,9 @@ router.get('/', async (_req: AuthRequest, res: Response) => {
   try {
     const data = await getExchangeRates();
     res.json(data);
-  } catch {
-    res.status(500).json({ error: 'Failed to fetch exchange rates' });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Failed to fetch exchange rates';
+    res.status(500).json({ error: message });
   }
 });
 

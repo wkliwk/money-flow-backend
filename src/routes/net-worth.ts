@@ -20,8 +20,9 @@ router.get('/', async (req: AuthRequest, res: Response) => {
     }).sort({ date: 1 });
 
     res.json(snapshots);
-  } catch {
-    res.status(500).json({ error: 'Failed to fetch net worth snapshots' });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Failed to fetch net worth snapshots';
+    res.status(500).json({ error: message });
   }
 });
 
@@ -30,8 +31,9 @@ router.get('/latest', async (req: AuthRequest, res: Response) => {
   try {
     const snapshot = await NetWorthModel.findOne({ userId: req.userId }).sort({ date: -1 });
     res.json(snapshot || null);
-  } catch {
-    res.status(500).json({ error: 'Failed to fetch latest snapshot' });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Failed to fetch latest snapshot';
+    res.status(500).json({ error: message });
   }
 });
 
@@ -67,8 +69,9 @@ router.post('/', validation, async (req: AuthRequest, res: Response) => {
     );
 
     res.status(201).json(snapshot);
-  } catch {
-    res.status(400).json({ error: 'Failed to save net worth snapshot' });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Failed to save net worth snapshot';
+    res.status(400).json({ error: message });
   }
 });
 
@@ -92,8 +95,9 @@ router.put('/:snapshotId', validation, async (req: AuthRequest, res: Response) =
     }
 
     res.json(snapshot);
-  } catch {
-    res.status(400).json({ error: 'Failed to update snapshot' });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Failed to update snapshot';
+    res.status(400).json({ error: message });
   }
 });
 
@@ -111,8 +115,9 @@ router.delete('/:snapshotId', async (req: AuthRequest, res: Response) => {
     }
 
     res.json({ message: 'Deleted' });
-  } catch {
-    res.status(500).json({ error: 'Failed to delete snapshot' });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Failed to delete snapshot';
+    res.status(500).json({ error: message });
   }
 });
 

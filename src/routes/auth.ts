@@ -5,6 +5,17 @@ import rateLimit from 'express-rate-limit';
 import { OAuth2Client } from 'google-auth-library';
 import appleSignin from 'apple-signin-auth';
 import UserModel from '../models/User';
+import ExpenseModel from '../models/Expense';
+import TransactionTemplateModel from '../models/TransactionTemplate';
+import RecurringExpenseModel from '../models/RecurringExpense';
+import GoalModel from '../models/Goal';
+import AccountModel from '../models/Account';
+import NetWorthModel from '../models/NetWorth';
+import { WeeklyPulseModel } from '../models/WeeklyPulse';
+import AlertModel from '../models/Alert';
+import ItemPriceModel from '../models/ItemPrice';
+import FriendshipModel from '../models/Friendship';
+import { protect, AuthRequest } from '../middleware/auth';
 
 const router = Router();
 
@@ -214,6 +225,70 @@ router.post(
       res.json({ token });
     } catch {
       res.status(401).json({ error: 'Apple authentication failed' });
+    }
+  }
+);
+
+export const deleteAccountLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  limit: 3,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: rateLimitMessage,
+  skip: isTestWithoutRateLimit,
+});
+
+// DELETE /auth/account
+router.delete(
+  '/account',
+  deleteAccountLimiter,
+  protect,
+  [body('password').notEmpty().withMessage('Password is required')],
+  async (req: AuthRequest, res: Response) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      res.status(400).json({ error: errors.array()[0].msg });
+      return;
+    }
+
+    try {
+      const userId = req.userId as string;
+      const { password } = req.body as { password: string };
+
+      const user = await UserModel.findById(userId);
+      if (!user) {
+        res.status(401).json({ error: 'User not found' });
+        return;
+      }
+
+      if (!user.password) {
+        res.status(400).json({ error: 'OAuth-only accounts cannot be deleted with password confirmation' });
+        return;
+      }
+
+      const isMatch = await user.comparePassword(password);
+      if (!isMatch) {
+        res.status(401).json({ error: 'Incorrect password' });
+        return;
+      }
+
+      await Promise.all([
+        ExpenseModel.deleteMany({ owner: userId }),
+        TransactionTemplateModel.deleteMany({ owner: userId }),
+        RecurringExpenseModel.deleteMany({ userId }),
+        GoalModel.deleteMany({ userId }),
+        AccountModel.deleteMany({ userId }),
+        NetWorthModel.deleteMany({ userId }),
+        WeeklyPulseModel.deleteMany({ userId }),
+        AlertModel.deleteMany({ userId }),
+        ItemPriceModel.deleteMany({ userId }),
+        FriendshipModel.deleteMany({ $or: [{ requester: userId }, { recipient: userId }] }),
+        UserModel.findByIdAndDelete(userId),
+      ]);
+
+      res.json({ message: 'Account and all data deleted' });
+    } catch {
+      res.status(500).json({ error: 'Account deletion failed' });
     }
   }
 );

@@ -188,8 +188,12 @@ function extractAmount(text: string): { amount: number | undefined; currency: st
   // $-prefixed amounts
   const dollarMatch = cleaned.match(/\$(\d+\.?\d*)/);
   if (dollarMatch) {
-    cleaned = cleaned.replace(/\$\d+\.?\d*/, dollarMatch[1]);
+    cleaned = cleaned.replace(/\$\d+\.?\d*/, ' ' + dollarMatch[1] + ' ');
   }
+
+  // Separate CJK characters from numbers (e.g. "每人65" → "每人 65")
+  cleaned = cleaned.replace(/([\u4e00-\u9fff\u3400-\u4dbf])(\d)/g, '$1 $2');
+  cleaned = cleaned.replace(/(\d)([\u4e00-\u9fff\u3400-\u4dbf])/g, '$1 $2');
 
   // Find amount — first numeric token
   const parts = cleaned.split(/\s+/);

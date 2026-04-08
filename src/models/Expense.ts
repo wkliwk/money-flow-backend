@@ -1,5 +1,26 @@
 import mongoose, { Document } from 'mongoose';
 
+const PAYMENT_METHODS = [
+  'cash',
+  'credit_card',
+  'debit_card',
+  'octopus',
+  'payme',
+  'fps',
+  'bank_transfer',
+  'alipay_hk',
+  'wechat_pay',
+  'other',
+] as const;
+
+type PaymentMethod = typeof PAYMENT_METHODS[number];
+
+const SUPPORTED_CURRENCIES = [
+  'HKD', 'CNY', 'JPY', 'USD', 'EUR', 'GBP', 'TWD', 'THB', 'KRW',
+] as const;
+
+type SupportedCurrency = typeof SUPPORTED_CURRENCIES[number];
+
 interface IExpense extends Document {
   owner: string;
   description?: string;
@@ -16,6 +37,13 @@ interface IExpense extends Document {
   endDate?: Date | null;
   date?: Date;
   amount: number;
+  currency?: SupportedCurrency;
+  originalAmount?: number | null;
+  exchangeRate?: number | null;
+  paymentMethod?: PaymentMethod | null;
+  splitBill?: boolean | string;
+  createdAt?: Date;
+  updatedAt?: Date;
 }
 
 const ExpenseSchema = new mongoose.Schema(
@@ -33,11 +61,30 @@ const ExpenseSchema = new mongoose.Schema(
     date: { type: Date, default: Date.now },
     category: String,
     item: String,
-    participants: { type: [String], default: [] },
+    participants: [String],
     amount: { type: Number, required: true },
+    currency: {
+      type: String,
+      enum: SUPPORTED_CURRENCIES,
+      default: 'HKD',
+    },
+    originalAmount: { type: Number, default: null },
+    exchangeRate: { type: Number, default: null },
+    paymentMethod: {
+      type: String,
+      enum: [...PAYMENT_METHODS, null],
+      default: null,
+    },
+    splitBill: { type: mongoose.Schema.Types.Mixed, default: false },
   },
   { timestamps: true }
 );
 
+ExpenseSchema.index({ owner: 1, date: -1 });
+ExpenseSchema.index({ owner: 1, _id: 1 });
+ExpenseSchema.index({ owner: 1, category: 1, date: -1 }); // budget + report queries filtered by category
+
+export { PAYMENT_METHODS, SUPPORTED_CURRENCIES };
+export type { SupportedCurrency };
 export const ExpenseModel = mongoose.model<IExpense>('Expense', ExpenseSchema);
 export default ExpenseModel;

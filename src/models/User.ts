@@ -5,7 +5,10 @@ export interface IBudget {
   category: string;
   limit: number;
   alert_threshold?: number;
+  enable_alerts?: boolean;
 }
+
+export type ThemePreference = 'light' | 'dark' | 'system';
 
 export interface IPushNotificationPrefs {
   budgetAlerts: boolean;
@@ -15,10 +18,18 @@ export interface IPushNotificationPrefs {
 
 export interface IUser extends Document {
   email: string;
-  password: string;
+  password?: string;
+  googleId?: string;
+  appleId?: string;
   budgets: IBudget[];
+  telegramChatId?: string;
+  weeklyDigestEnabled: boolean;
+  themePreference: ThemePreference;
+  baseCurrency: string;
   expoPushToken?: string;
   pushNotificationPrefs: IPushNotificationPrefs;
+  // Track which budget alert thresholds have already fired this month
+  // Key: "<category>_<threshold>" e.g. "Food_75", "Food_100"
   budgetAlertsSentThisMonth: string[];
   createdAt: Date;
   comparePassword(candidate: string): Promise<boolean>;
@@ -27,17 +38,24 @@ export interface IUser extends Document {
 const UserSchema = new mongoose.Schema(
   {
     email: { type: String, required: true, unique: true, lowercase: true, trim: true },
-    password: { type: String, required: true, minlength: 6 },
+    password: { type: String, minlength: 6 },
+    googleId: { type: String, sparse: true },
+    appleId: { type: String, sparse: true },
     budgets: {
       type: [
         {
           category: String,
           limit: Number,
-          alert_threshold: Number,
+          alert_threshold: { type: Number, default: 0.9 },
+          enable_alerts: { type: Boolean, default: false },
         },
       ],
       default: [],
     },
+    telegramChatId: { type: String, default: undefined },
+    weeklyDigestEnabled: { type: Boolean, default: false },
+    themePreference: { type: String, enum: ['light', 'dark', 'system'], default: 'system' },
+    baseCurrency: { type: String, default: 'USD', uppercase: true, trim: true },
     expoPushToken: { type: String, default: undefined },
     pushNotificationPrefs: {
       type: {
@@ -53,7 +71,7 @@ const UserSchema = new mongoose.Schema(
 );
 
 UserSchema.pre('save', async function (next) {
-  if (!this.isModified('password')) return next();
+  if (!this.isModified('password') || !this.password) return next();
   this.password = await bcrypt.hash(this.password, 12);
   next();
 });

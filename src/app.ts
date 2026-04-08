@@ -1,20 +1,36 @@
 import './instrument';
 import * as Sentry from '@sentry/node';
 import express, { Request, Response, NextFunction } from 'express';
-import mongoose from 'mongoose';
 import cors from 'cors';
 import dotenv from 'dotenv';
+import { connectWithRetry, getHealthStatus } from './db';
 import authRoutes from './routes/auth';
 import expenseRoutes from './routes/expenses';
 import budgetRoutes from './routes/budgets';
-import transactionRoutes from './routes/transactions';
+import netWorthRoutes from './routes/net-worth';
+import exportRoutes from './routes/export';
+import importRoutes from './routes/import';
 import recurringRoutes from './routes/recurring';
-import goalRoutes from './routes/goals';
+import reportRoutes from './routes/reports';
+import exchangeRateRoutes from './routes/exchange-rates';
+import userRoutes from './routes/users';
+import receiptRoutes from './routes/receipts';
 import templateRoutes from './routes/templates';
+import friendRoutes from './routes/friends';
+import jobRoutes from './routes/jobs';
+import itemPriceRoutes from './routes/item-prices';
+import accountRoutes from './routes/accounts';
+import insightRoutes from './routes/insights';
+import goalRoutes from './routes/goals';
+import transactionRoutes from './routes/transactions';
 import notificationRoutes from './routes/notifications';
+import { startAlertScheduler } from './jobs/processAlerts';
 import { startBudgetAlertPushScheduler } from './jobs/budgetAlertPush';
 import { startWeeklySummaryPushScheduler } from './jobs/weeklySummaryPush';
 import { startUnusualSpendingPushScheduler } from './jobs/unusualSpendingPush';
+import { startRecurringScheduler } from './jobs/processRecurring';
+import { startWeeklyDigestScheduler } from './jobs/weeklyDigest';
+import { startMonthlySummaryScheduler } from './jobs/monthlySummary';
 
 dotenv.config();
 
@@ -28,17 +44,41 @@ app.use(cors({
 }));
 app.use(express.json());
 
+const { version } = require('../package.json') as { version: string };
+
 app.get('/health', (_req, res) => {
-  res.json({ status: 'ok' });
+  res.json({ status: 'ok', version });
+});
+
+app.get('/debug-sentry', (_req, _res) => {
+  throw new Error('Sentry test error — verify capture works');
+});
+
+app.get('/api/health', async (_req, res) => {
+  const health = await getHealthStatus();
+  const statusCode = health.status === 'healthy' ? 200 : 503;
+  res.status(statusCode).json({ ...health, version });
 });
 
 app.use('/auth', authRoutes);
 app.use('/api/expenses', expenseRoutes);
 app.use('/api/budgets', budgetRoutes);
-app.use('/api/transactions', transactionRoutes);
+app.use('/api/net-worth', netWorthRoutes);
+app.use('/api/export', exportRoutes);
+app.use('/api/import', importRoutes);
 app.use('/api/recurring', recurringRoutes);
-app.use('/api/goals', goalRoutes);
+app.use('/api/reports', reportRoutes);
+app.use('/api/exchange-rates', exchangeRateRoutes);
+app.use('/api/users', userRoutes);
+app.use('/api/receipts', receiptRoutes);
 app.use('/api/templates', templateRoutes);
+app.use('/api/friends', friendRoutes);
+app.use('/api/jobs', jobRoutes);
+app.use('/api/item-prices', itemPriceRoutes);
+app.use('/api/accounts', accountRoutes);
+app.use('/api/insights', insightRoutes);
+app.use('/api/goals', goalRoutes);
+app.use('/api/transactions', transactionRoutes);
 app.use('/api/notifications', notificationRoutes);
 
 Sentry.setupExpressErrorHandler(app);
@@ -52,10 +92,13 @@ app.use((err: Error, _req: Request, res: Response, _next: NextFunction) => {
 
 // Only connect and start server when not in test environment
 if (process.env.NODE_ENV !== 'test') {
-  mongoose
-    .connect(MONGODB_URI)
+  connectWithRetry(MONGODB_URI)
     .then(() => {
       console.log('Connected to MongoDB');
+      startAlertScheduler();
+      startRecurringScheduler();
+      startWeeklyDigestScheduler();
+      startMonthlySummaryScheduler();
       startBudgetAlertPushScheduler();
       startWeeklySummaryPushScheduler();
       startUnusualSpendingPushScheduler();

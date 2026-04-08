@@ -49,7 +49,7 @@ export async function runWeeklySummaryPushJob(): Promise<number> {
   for (const user of users) {
     if (!user.expoPushToken) continue;
 
-    const currency = 'USD';
+    const currency = user.baseCurrency ?? 'USD';
 
     const expenses = await ExpenseModel.find({
       owner: user._id.toString(),

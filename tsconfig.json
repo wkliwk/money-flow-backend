@@ -8,6 +8,6 @@
       "esModuleInterop": true,
       "skipLibCheck": true
     },
-    "exclude": ["src/**/*.test.ts", "__tests__"]
+    "exclude": ["__tests__", "node_modules", "scripts"]
   }
   

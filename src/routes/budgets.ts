@@ -17,8 +17,107 @@ router.get('/', async (req: AuthRequest, res: Response) => {
       return;
     }
     res.json({ budgets: user.budgets || [] });
-  } catch {
-    res.status(500).json({ error: 'Failed to fetch budgets' });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Failed to fetch budgets';
+    res.status(500).json({ error: message });
+  }
+});
+
+// GET /api/budgets/summary - returns current spend vs limits
+router.get('/summary', async (req: AuthRequest, res: Response) => {
+  try {
+    const user = await UserModel.findById(req.userId).lean();
+    if (!user) {
+      res.status(404).json({ error: 'User not found' });
+      return;
+    }
+
+    const budgets = user.budgets || [];
+    if (budgets.length === 0) {
+      res.json({ summary: [] });
+      return;
+    }
+
+    // Get current month start and end
+    const now = new Date();
+    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+    const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+
+    // Get expenses for current month grouped by category
+    const expenses = await ExpenseModel.find(
+      {
+        owner: req.userId,
+        type: 'expense',
+        date: { $gte: monthStart, $lte: monthEnd },
+      },
+      { category: 1, amount: 1 }
+    ).lean();
+
+    const categorySpend: { [key: string]: number } = {};
+    expenses.forEach((exp) => {
+      const cat = exp.category || 'Uncategorized';
+      categorySpend[cat] = (categorySpend[cat] || 0) + exp.amount;
+    });
+
+    const summary = budgets.map((b) => {
+      const spend = categorySpend[b.category] || 0;
+      const threshold = b.alert_threshold || 0.9;
+      const remaining = Math.max(0, b.limit - spend);
+      const exceeds = spend > b.limit;
+      const percentUsed = b.limit > 0 ? (spend / b.limit) * 100 : 0;
+
+      return {
+        category: b.category,
+        limit: b.limit,
+        spend,
+        remaining,
+        percentUsed: Math.round(percentUsed),
+        exceeds,
+        alertTriggered: exceeds && b.enable_alerts,
+        thresholdPercentage: threshold * 100,
+      };
+    });
+
+    res.json({ summary });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Failed to fetch budget summary';
+    res.status(500).json({ error: message });
+  }
+});
+
+// POST /api/budgets/:category/alerts - enable/disable alerts for category
+router.post('/:category/alerts', [
+  body('enable_alerts').isBoolean().withMessage('enable_alerts must be a boolean'),
+], async (req: AuthRequest, res: Response) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    res.status(400).json({ error: errors.array()[0].msg });
+    return;
+  }
+  try {
+    const { category } = req.params;
+    const { enable_alerts } = req.body;
+
+    const user = await UserModel.findById(req.userId);
+    if (!user) {
+      res.status(404).json({ error: 'User not found' });
+      return;
+    }
+
+    // Find or create budget entry for this category
+    let budget = user.budgets.find((b) => b.category === category);
+    if (!budget) {
+      res.status(404).json({ error: 'Budget not found for this category' });
+      return;
+    }
+
+    budget.enable_alerts = enable_alerts;
+    await user.save();
+
+    res.json({ message: `Alerts ${enable_alerts ? 'enabled' : 'disabled'} for ${category}` });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Failed to update alert settings';
+    res.status(500).json({ error: message });
   }
 });
 
@@ -29,7 +128,6 @@ router.put(
     body('budgets').isArray().withMessage('budgets must be an array'),
     body('budgets.*.category').notEmpty().withMessage('category is required'),
     body('budgets.*.limit').isNumeric().withMessage('limit must be a number'),
-    body('budgets.*.alert_threshold').optional().isNumeric().withMessage('alert_threshold must be a number'),
   ],
   async (req: AuthRequest, res: Response) => {
     const errors = validationResult(req);
@@ -38,70 +136,20 @@ router.put(
       return;
     }
     try {
-      const budgets = (req.body.budgets as { category: string; limit: number; alert_threshold?: number }[])
-        .filter((b) => b.limit > 0)
-        .map((b) => ({
-          category: b.category,
-          limit: b.limit,
-          ...(b.alert_threshold && { alert_threshold: b.alert_threshold }),
-        }));
+      const budgets = (
+        req.body.budgets as {
+          category: string;
+          limit: number;
+          alert_threshold?: number;
+          enable_alerts?: boolean;
+        }[]
+      ).filter((b) => b.limit > 0);
+
       await UserModel.findByIdAndUpdate(req.userId, { $set: { budgets } });
       res.json({ budgets });
-    } catch {
-      res.status(500).json({ error: 'Failed to update budgets' });
-    }
-  }
-);
-
-// GET /api/budgets/:category/alerts
-// Returns monthly alerts for a budget category
-router.get(
-  '/:category/alerts',
-  async (req: AuthRequest, res: Response) => {
-    try {
-      const { category } = req.params;
-      const user = await UserModel.findById(req.userId).lean();
-
-      if (!user) {
-        res.status(404).json({ error: 'User not found' });
-        return;
-      }
-
-      const budget = user.budgets?.find((b) => b.category === category);
-      if (!budget) {
-        res.status(404).json({ error: 'Budget not found' });
-        return;
-      }
-
-      if (!budget.alert_threshold) {
-        res.json({ budget_category: category, alert_threshold: null, alerts: [] });
-        return;
-      }
-
-      // Get current month's expenses for this category
-      const now = new Date();
-      const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
-      const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 1);
-
-      const expenses = await ExpenseModel.find({
-        owner: req.userId,
-        category,
-        date: { $gte: monthStart, $lt: monthEnd },
-      });
-
-      const totalSpent = expenses.reduce((sum, exp) => sum + exp.amount, 0);
-      const exceeded = totalSpent > budget.alert_threshold;
-
-      res.json({
-        budget_category: category,
-        alert_threshold: budget.alert_threshold,
-        total_spent: totalSpent,
-        exceeded,
-        remaining: Math.max(0, budget.alert_threshold - totalSpent),
-        month: `${monthStart.getFullYear()}-${String(monthStart.getMonth() + 1).padStart(2, '0')}`,
-      });
-    } catch {
-      res.status(500).json({ error: 'Failed to fetch budget alerts' });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to update budgets';
+      res.status(500).json({ error: message });
     }
   }
 );

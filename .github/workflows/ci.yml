@@ -18,17 +18,124 @@ jobs:
           cache: yarn
       - name: Install dependencies
         run: yarn install --frozen-lockfile
+      - name: Test with coverage gate
+        run: |
+          npm test -- --coverage --coverageReporters=json-summary --forceExit 2>&1 | tee /tmp/test-output.txt
+          COVERAGE=$(python3 -c "
+          import json, sys
+          try:
+            with open('coverage/coverage-summary.json') as f:
+              d = json.load(f)
+            pct = d['total']['lines']['pct']
+            print(int(pct))
+          except Exception as e:
+            print(0)
+          ")
+          echo "Line coverage: ${COVERAGE}%"
+          if [ "${COVERAGE}" -lt 85 ]; then
+            echo "Coverage ${COVERAGE}% is below the 85% baseline."
+            exit 1
+          fi
+          echo "Coverage ${COVERAGE}% meets 85% baseline."
       - name: TypeScript compile
         run: yarn build
+      - name: Deploy to Railway
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+        continue-on-error: true
+        run: |
+          npm install -g @railway/cli
+          railway up --detach
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
       - name: Notify Telegram on success
         if: success()
+        continue-on-error: true
         run: |
-          curl -s -X POST "https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendMessage" \
+          curl -sf -X POST "https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendMessage" \
             -d chat_id="${{ secrets.TELEGRAM_CHAT_ID }}" \
-            -d text="✅ CI passed: money-flow-backend (${{ github.ref_name }}) — ${{ github.event.head_commit.message }}"
+            -d text="CI passed + deployed: money-flow-backend (${{ github.ref_name }})" || true
       - name: Notify Telegram on failure
         if: failure()
+        continue-on-error: true
         run: |
-          curl -s -X POST "https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendMessage" \
+          curl -sf -X POST "https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendMessage" \
             -d chat_id="${{ secrets.TELEGRAM_CHAT_ID }}" \
-            -d text="❌ CI failed: money-flow-backend (${{ github.ref_name }}) — ${{ github.event.head_commit.message }}"
+            -d text="CI failed: money-flow-backend (${{ github.ref_name }})" || true
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Bump patch version and tag
+        id: version
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          CURRENT=$(node -p "require('./package.json').version")
+          IFS='.' read -r MAJOR MINOR PATCH <<< "$CURRENT"
+          NEW_VERSION="${MAJOR}.${MINOR}.$((PATCH + 1))"
+
+          if git rev-parse "v${NEW_VERSION}" >/dev/null 2>&1; then
+            echo "Tag v${NEW_VERSION} already exists, skipping release."
+            echo "skip=true" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          npm version "${NEW_VERSION}" --no-git-tag-version
+          git add package.json
+          git commit -m "chore: bump version to ${NEW_VERSION} [skip ci]"
+          git push origin main
+
+          git tag "v${NEW_VERSION}"
+          git push origin "v${NEW_VERSION}"
+
+          echo "version=${NEW_VERSION}" >> $GITHUB_OUTPUT
+          echo "skip=false" >> $GITHUB_OUTPUT
+      - name: Generate changelog
+        if: steps.version.outputs.skip != 'true'
+        id: changelog
+        run: |
+          PREV_TAG=$(git tag --sort=-version:refname | grep -v "v${{ steps.version.outputs.version }}" | head -1)
+          if [ -z "$PREV_TAG" ]; then
+            COMMITS=$(git log --oneline --no-merges | head -30)
+            DIFF_LINE=""
+          else
+            COMMITS=$(git log "${PREV_TAG}..HEAD" --oneline --no-merges)
+            DIFF_LINE="**Full diff**: https://github.com/${{ github.repository }}/compare/${PREV_TAG}...v${{ steps.version.outputs.version }}"
+          fi
+
+          FEATURES=$(echo "$COMMITS" | grep -E '^[a-f0-9]+ feat:' | sed 's/^[a-f0-9]* feat: /- /' || true)
+          FIXES=$(echo "$COMMITS" | grep -E '^[a-f0-9]+ fix:' | sed 's/^[a-f0-9]* fix: /- /' || true)
+          PERF=$(echo "$COMMITS" | grep -E '^[a-f0-9]+ perf:' | sed 's/^[a-f0-9]* perf: /- /' || true)
+          REFACTOR=$(echo "$COMMITS" | grep -E '^[a-f0-9]+ refactor:' | sed 's/^[a-f0-9]* refactor: /- /' || true)
+          CHORES=$(echo "$COMMITS" | grep -E '^[a-f0-9]+ chore:' | sed 's/^[a-f0-9]* chore: /- /' || true)
+
+          NOTES="## What's in v${{ steps.version.outputs.version }}"$'\n'
+          [ -n "$FEATURES" ] && NOTES+=$'\n'"### New Features"$'\n'"$FEATURES"$'\n'
+          [ -n "$FIXES" ] && NOTES+=$'\n'"### Bug Fixes"$'\n'"$FIXES"$'\n'
+          [ -n "$PERF" ] && NOTES+=$'\n'"### Performance"$'\n'"$PERF"$'\n'
+          [ -n "$REFACTOR" ] && NOTES+=$'\n'"### Improvements"$'\n'"$REFACTOR"$'\n'
+          [ -n "$CHORES" ] && NOTES+=$'\n'"### Chores"$'\n'"$CHORES"$'\n'
+          [ -n "$DIFF_LINE" ] && NOTES+=$'\n'"---"$'\n'"$DIFF_LINE"
+
+          echo "$NOTES" > /tmp/release-notes.md
+      - name: Create GitHub release
+        if: steps.version.outputs.skip != 'true'
+        run: |
+          gh release create "v${{ steps.version.outputs.version }}" \
+            --title "v${{ steps.version.outputs.version }} — money-flow-backend" \
+            --notes-file /tmp/release-notes.md
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -1,4 +1,4 @@
-import { parseTransactionText } from '../src/utils/parseTransactionText';
+import { regexParseTransaction as parseTransactionText } from '../src/utils/parseTransactionText';
 
 describe('parseTransactionText', () => {
   describe('basic amount + description', () => {

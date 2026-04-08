@@ -7,10 +7,19 @@ export interface IBudget {
   alert_threshold?: number;
 }
 
+export interface IPushNotificationPrefs {
+  budgetAlerts: boolean;
+  weeklySummary: boolean;
+  unusualSpending: boolean;
+}
+
 export interface IUser extends Document {
   email: string;
   password: string;
   budgets: IBudget[];
+  expoPushToken?: string;
+  pushNotificationPrefs: IPushNotificationPrefs;
+  budgetAlertsSentThisMonth: string[];
   createdAt: Date;
   comparePassword(candidate: string): Promise<boolean>;
 }
@@ -29,6 +38,16 @@ const UserSchema = new mongoose.Schema(
       ],
       default: [],
     },
+    expoPushToken: { type: String, default: undefined },
+    pushNotificationPrefs: {
+      type: {
+        budgetAlerts: { type: Boolean, default: true },
+        weeklySummary: { type: Boolean, default: true },
+        unusualSpending: { type: Boolean, default: true },
+      },
+      default: () => ({ budgetAlerts: true, weeklySummary: true, unusualSpending: true }),
+    },
+    budgetAlertsSentThisMonth: { type: [String], default: [] },
   },
   { timestamps: true }
 );

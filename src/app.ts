@@ -23,7 +23,11 @@ import accountRoutes from './routes/accounts';
 import insightRoutes from './routes/insights';
 import goalRoutes from './routes/goals';
 import transactionRoutes from './routes/transactions';
+import notificationRoutes from './routes/notifications';
 import { startAlertScheduler } from './jobs/processAlerts';
+import { startBudgetAlertPushScheduler } from './jobs/budgetAlertPush';
+import { startWeeklySummaryPushScheduler } from './jobs/weeklySummaryPush';
+import { startUnusualSpendingPushScheduler } from './jobs/unusualSpendingPush';
 import { startRecurringScheduler } from './jobs/processRecurring';
 import { startWeeklyDigestScheduler } from './jobs/weeklyDigest';
 import { startMonthlySummaryScheduler } from './jobs/monthlySummary';
@@ -75,6 +79,7 @@ app.use('/api/accounts', accountRoutes);
 app.use('/api/insights', insightRoutes);
 app.use('/api/goals', goalRoutes);
 app.use('/api/transactions', transactionRoutes);
+app.use('/api/notifications', notificationRoutes);
 
 Sentry.setupExpressErrorHandler(app);
 
@@ -94,6 +99,9 @@ if (process.env.NODE_ENV !== 'test') {
       startRecurringScheduler();
       startWeeklyDigestScheduler();
       startMonthlySummaryScheduler();
+      startBudgetAlertPushScheduler();
+      startWeeklySummaryPushScheduler();
+      startUnusualSpendingPushScheduler();
       app.listen(PORT, () => {
         console.log(`Server running on port ${PORT}`);
       });

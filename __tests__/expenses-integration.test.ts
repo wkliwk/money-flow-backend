@@ -73,6 +73,33 @@ describe('POST /api/expenses', () => {
     expect(res.status).toBe(400);
   });
 
+  it('rejects zero amount with 400', async () => {
+    const res = await request(app)
+      .post('/api/expenses')
+      .set('Authorization', `Bearer ${tokenA}`)
+      .send({ ...validExpense, amount: 0 });
+    expect(res.status).toBe(400);
+    expect(res.body.error).toMatch(/positive/i);
+  });
+
+  it('rejects negative amount with 400', async () => {
+    const res = await request(app)
+      .post('/api/expenses')
+      .set('Authorization', `Bearer ${tokenA}`)
+      .send({ ...validExpense, amount: -50 });
+    expect(res.status).toBe(400);
+    expect(res.body.error).toMatch(/positive/i);
+  });
+
+  it('rejects zero originalAmount with 400', async () => {
+    const res = await request(app)
+      .post('/api/expenses')
+      .set('Authorization', `Bearer ${tokenA}`)
+      .send({ ...validExpense, originalAmount: 0 });
+    expect(res.status).toBe(400);
+    expect(res.body.error).toMatch(/positive/i);
+  });
+
   it('rejects unauthenticated request with 401', async () => {
     const res = await request(app)
       .post('/api/expenses')
@@ -245,6 +272,26 @@ describe('PUT /api/expenses/:id', () => {
       .set('Authorization', `Bearer ${tokenA}`)
       .send({ ...validExpense, amount: 'not-a-number' });
     expect(res.status).toBe(400);
+  });
+
+  it('rejects zero amount on update with 400', async () => {
+    const created = await createExpense(tokenA);
+    const res = await request(app)
+      .put(`/api/expenses/${created.body._id}`)
+      .set('Authorization', `Bearer ${tokenA}`)
+      .send({ ...validExpense, amount: 0 });
+    expect(res.status).toBe(400);
+    expect(res.body.error).toMatch(/positive/i);
+  });
+
+  it('rejects negative amount on update with 400', async () => {
+    const created = await createExpense(tokenA);
+    const res = await request(app)
+      .put(`/api/expenses/${created.body._id}`)
+      .set('Authorization', `Bearer ${tokenA}`)
+      .send({ ...validExpense, amount: -25 });
+    expect(res.status).toBe(400);
+    expect(res.body.error).toMatch(/positive/i);
   });
 });
 

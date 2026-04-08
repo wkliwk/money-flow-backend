@@ -35,7 +35,7 @@ router.use(protect);
 
 const recurringValidation = [
   body('name').notEmpty().withMessage('name is required'),
-  body('amount').isNumeric().withMessage('amount must be a number'),
+  body('amount').isFloat({ gt: 0 }).withMessage('amount must be a positive number'),
   body('start_date').isISO8601().withMessage('start_date must be a valid date'),
   body('end_date').optional().isISO8601().withMessage('end_date must be a valid date'),
   body('frequency')

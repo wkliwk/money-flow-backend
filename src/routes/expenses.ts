@@ -57,8 +57,8 @@ const currencyValidation = body('currency')
 
 const originalAmountValidation = body('originalAmount')
   .optional({ values: 'null' })
-  .isNumeric()
-  .withMessage('originalAmount must be a number');
+  .isFloat({ gt: 0 })
+  .withMessage('originalAmount must be a positive number');
 
 const exchangeRateValidation = body('exchangeRate')
   .optional({ values: 'null' })
@@ -66,7 +66,7 @@ const exchangeRateValidation = body('exchangeRate')
   .withMessage('exchangeRate must be a number');
 
 const expenseValidation = [
-  body('amount').isNumeric().withMessage('Amount must be a number'),
+  body('amount').isFloat({ gt: 0 }).withMessage('Amount must be a positive number'),
   currencyValidation,
   originalAmountValidation,
   exchangeRateValidation,

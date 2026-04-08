@@ -66,6 +66,36 @@ describe('Recurring Expenses', () => {
     expect(res.body.frequency).toBe('MONTHLY');
   });
 
+  it('should reject zero amount with 400', async () => {
+    const res = await request(app)
+      .post('/api/recurring')
+      .set('Authorization', `Bearer ${token}`)
+      .send({
+        name: 'Zero',
+        amount: 0,
+        category: 'Test',
+        start_date: '2026-01-01',
+        frequency: 'MONTHLY',
+      });
+    expect(res.status).toBe(400);
+    expect(res.body.error).toMatch(/positive/i);
+  });
+
+  it('should reject negative amount with 400', async () => {
+    const res = await request(app)
+      .post('/api/recurring')
+      .set('Authorization', `Bearer ${token}`)
+      .send({
+        name: 'Negative',
+        amount: -100,
+        category: 'Test',
+        start_date: '2026-01-01',
+        frequency: 'MONTHLY',
+      });
+    expect(res.status).toBe(400);
+    expect(res.body.error).toMatch(/positive/i);
+  });
+
   it('should list all recurring expenses for user', async () => {
     // Create two recurring expenses
     await request(app)
@@ -126,6 +156,30 @@ describe('Recurring Expenses', () => {
     expect(updateRes.status).toBe(200);
     expect(updateRes.body.name).toBe('Premium Subscription');
     expect(updateRes.body.amount).toBe(20);
+  });
+
+  it('should reject zero amount on update with 400', async () => {
+    const createRes = await request(app)
+      .post('/api/recurring')
+      .set('Authorization', `Bearer ${token}`)
+      .send({
+        name: 'Subscription',
+        amount: 10,
+        frequency: 'MONTHLY',
+        start_date: '2026-01-01',
+      });
+
+    const res = await request(app)
+      .put(`/api/recurring/${createRes.body._id}`)
+      .set('Authorization', `Bearer ${token}`)
+      .send({
+        name: 'Subscription',
+        amount: 0,
+        frequency: 'MONTHLY',
+        start_date: '2026-01-01',
+      });
+    expect(res.status).toBe(400);
+    expect(res.body.error).toMatch(/positive/i);
   });
 
   it('should delete a recurring expense', async () => {

@@ -82,6 +82,7 @@ const ExpenseSchema = new mongoose.Schema(
 
 ExpenseSchema.index({ owner: 1, date: -1 });
 ExpenseSchema.index({ owner: 1, _id: 1 });
+ExpenseSchema.index({ owner: 1, category: 1, date: -1 }); // budget + report queries filtered by category
 
 export { PAYMENT_METHODS, SUPPORTED_CURRENCIES };
 export type { SupportedCurrency };

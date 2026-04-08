@@ -41,6 +41,11 @@ const CATEGORY_KEYWORDS: Record<string, readonly string[]> = {
     'parking', 'fuel', 'grab', 'lyft', 'train', 'flight',
     '車', '巴士', '的士', '地鐵', '港鐵',
   ],
+  gifts: [
+    'gift', 'gifts', 'present', 'birthday', 'treat', 'favour', 'favor',
+    'bought for', 'buy for', 'buying for',
+    '禮物', '送禮', '紅包', '利是', '幫人買', '買俾', '請',
+  ],
   shopping: [
     'shopping', 'clothes', 'fashion', 'dress', 'shoes', 'clothing', 'amazon',
     'shirt', 'pants',

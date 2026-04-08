@@ -66,8 +66,8 @@ describe('GET /api/reports/monthly', () => {
   it('aggregates income and expenses', async () => {
     const now = new Date();
     await ExpenseModel.create([
-      { owner: TEST_USER_ID, description: 'Salary', amount: 5000, type: 'income', date: now },
-      { owner: TEST_USER_ID, description: 'Rent', amount: 2000, type: 'expense', date: now },
+      { owner: TEST_USER_ID, description: 'Salary', amount: 5000, type: 'income', currency: 'USD', date: now },
+      { owner: TEST_USER_ID, description: 'Rent', amount: 2000, type: 'expense', currency: 'USD', date: now },
     ]);
     const res = await request(app)
       .get('/api/reports/monthly?months=1')

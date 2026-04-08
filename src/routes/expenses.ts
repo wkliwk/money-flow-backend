@@ -2,6 +2,7 @@ import { Router, Response } from 'express';
 import { body, validationResult } from 'express-validator';
 import { compareTwoStrings } from 'string-similarity';
 import ExpenseModel, { PAYMENT_METHODS, SUPPORTED_CURRENCIES } from '../models/Expense';
+import UserModel from '../models/User';
 import { protect, AuthRequest } from '../middleware/auth';
 import { checkAndQueueBudgetAlerts } from '../utils/alerts';
 
@@ -312,6 +313,17 @@ router.post('/', expenseValidation, async (req: AuthRequest, res: Response) => {
       }
     }
 
+    // Default currency to user's baseCurrency if not provided
+    let resolvedCurrency = currency;
+    if (!resolvedCurrency && req.userId) {
+      try {
+        const user = await UserModel.findById(req.userId).select('baseCurrency').lean();
+        resolvedCurrency = user?.baseCurrency || 'USD';
+      } catch {
+        resolvedCurrency = 'USD';
+      }
+    }
+
     const expense = new ExpenseModel({
       owner: req.userId,
       description, amount, type, category, item, date, notes,
@@ -319,7 +331,7 @@ router.post('/', expenseValidation, async (req: AuthRequest, res: Response) => {
       ...(isRecurring !== undefined && { isRecurring }),
       ...(recurringFrequency !== undefined && { recurringFrequency }),
       ...(paymentMethod !== undefined && { paymentMethod }),
-      ...(currency !== undefined && { currency }),
+      ...(resolvedCurrency !== undefined && { currency: resolvedCurrency }),
       ...(originalAmount !== undefined && { originalAmount }),
       ...(exchangeRate !== undefined && { exchangeRate }),
       ...(splitBill !== undefined && { splitBill }),

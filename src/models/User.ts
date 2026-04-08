@@ -10,6 +10,12 @@ export interface IBudget {
 
 export type ThemePreference = 'light' | 'dark' | 'system';
 
+export interface IPushNotificationPrefs {
+  budgetAlerts: boolean;
+  weeklySummary: boolean;
+  unusualSpending: boolean;
+}
+
 export interface IUser extends Document {
   email: string;
   password?: string;
@@ -19,6 +25,12 @@ export interface IUser extends Document {
   telegramChatId?: string;
   weeklyDigestEnabled: boolean;
   themePreference: ThemePreference;
+  baseCurrency: string;
+  expoPushToken?: string;
+  pushNotificationPrefs: IPushNotificationPrefs;
+  // Track which budget alert thresholds have already fired this month
+  // Key: "<category>_<threshold>" e.g. "Food_75", "Food_100"
+  budgetAlertsSentThisMonth: string[];
   createdAt: Date;
   comparePassword(candidate: string): Promise<boolean>;
 }
@@ -43,6 +55,17 @@ const UserSchema = new mongoose.Schema(
     telegramChatId: { type: String, default: undefined },
     weeklyDigestEnabled: { type: Boolean, default: false },
     themePreference: { type: String, enum: ['light', 'dark', 'system'], default: 'system' },
+    baseCurrency: { type: String, default: 'USD', uppercase: true, trim: true },
+    expoPushToken: { type: String, default: undefined },
+    pushNotificationPrefs: {
+      type: {
+        budgetAlerts: { type: Boolean, default: true },
+        weeklySummary: { type: Boolean, default: true },
+        unusualSpending: { type: Boolean, default: true },
+      },
+      default: () => ({ budgetAlerts: true, weeklySummary: true, unusualSpending: true }),
+    },
+    budgetAlertsSentThisMonth: { type: [String], default: [] },
   },
   { timestamps: true }
 );

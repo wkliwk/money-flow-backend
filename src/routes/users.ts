@@ -22,6 +22,47 @@ router.get('/me', async (req: AuthRequest, res: Response) => {
   }
 });
 
+// PATCH /api/users/profile — update baseCurrency
+router.patch(
+  '/profile',
+  [
+    body('baseCurrency')
+      .notEmpty()
+      .isLength({ min: 3, max: 3 })
+      .toUpperCase()
+      .withMessage('baseCurrency must be a 3-letter ISO 4217 currency code'),
+  ],
+  async (req: AuthRequest, res: Response) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      res.status(400).json({ error: errors.array()[0].msg });
+      return;
+    }
+
+    try {
+      const { baseCurrency } = req.body as { baseCurrency: string };
+
+      const user = await UserModel.findByIdAndUpdate(
+        req.userId,
+        { $set: { baseCurrency: baseCurrency.toUpperCase() } },
+        { new: true, runValidators: true }
+      )
+        .select('-password')
+        .lean();
+
+      if (!user) {
+        res.status(404).json({ error: 'User not found' });
+        return;
+      }
+
+      res.json({ user });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to update profile';
+      res.status(500).json({ error: message });
+    }
+  }
+);
+
 // PATCH /api/users/preferences
 router.patch(
   '/preferences',

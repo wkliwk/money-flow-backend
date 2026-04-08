@@ -3,6 +3,7 @@ import ExpenseModel from '../models/Expense';
 import UserModel from '../models/User';
 import { protect, AuthRequest } from '../middleware/auth';
 import { sendWeeklyDigestForUser, aggregateWeeklyData, formatDigestMessage } from '../utils/weeklyDigest';
+import { getExchangeRates, convertCurrency } from '../utils/exchangeRates';
 
 const router = Router();
 
@@ -28,35 +29,34 @@ router.get('/monthly', async (req: AuthRequest, res: Response) => {
     const now = new Date();
     const startDate = subtractMonths(now, months - 1);
 
-    const rows = await ExpenseModel.aggregate([
-      {
-        $match: {
-          owner: req.userId,
-          date: { $gte: startDate },
-        },
-      },
-      {
-        $group: {
-          _id: { $dateToString: { format: '%Y-%m', date: '$date' } },
-          income: {
-            $sum: { $cond: [{ $eq: ['$type', 'income'] }, '$amount', 0] },
-          },
-          expenses: {
-            $sum: { $cond: [{ $eq: ['$type', 'expense'] }, '$amount', 0] },
-          },
-          transactionCount: { $sum: 1 },
-        },
-      },
-      { $sort: { _id: 1 } },
+    const [userResult, ratesResult] = await Promise.allSettled([
+      UserModel.findById(req.userId).select('baseCurrency').lean(),
+      getExchangeRates('USD'),
     ]);
+    const user = userResult.status === 'fulfilled' ? userResult.value : null;
+    const ratesData = ratesResult.status === 'fulfilled' ? ratesResult.value : { rates: { USD: 1 } as Record<string, number> };
+    const baseCurrency = user?.baseCurrency || 'USD';
+
+    const rawExpenses = await ExpenseModel.find({
+      owner: req.userId,
+      date: { $gte: startDate },
+    }).select('type amount currency date').lean();
 
     const monthMap: Record<string, { income: number; expenses: number; transactionCount: number }> = {};
-    for (const row of rows) {
-      monthMap[row._id] = {
-        income: row.income,
-        expenses: row.expenses,
-        transactionCount: row.transactionCount,
-      };
+    for (const expense of rawExpenses) {
+      const expDate = expense.date instanceof Date ? expense.date : new Date((expense.date ?? new Date()) as Date);
+      const label = monthLabel(expDate);
+      if (!monthMap[label]) monthMap[label] = { income: 0, expenses: 0, transactionCount: 0 };
+      const expCurrency = expense.currency || baseCurrency;
+      const converted = convertCurrency(expense.amount, expCurrency, baseCurrency, ratesData.rates);
+      if (expense.type === 'income') monthMap[label].income += converted;
+      else if (expense.type === 'expense') monthMap[label].expenses += converted;
+      monthMap[label].transactionCount++;
+    }
+
+    for (const entry of Object.values(monthMap)) {
+      entry.income = Math.round(entry.income * 100) / 100;
+      entry.expenses = Math.round(entry.expenses * 100) / 100;
     }
 
     const data = Array.from({ length: months }, (_, i) => {
@@ -67,12 +67,12 @@ router.get('/monthly', async (req: AuthRequest, res: Response) => {
         month: label,
         income: entry.income,
         expenses: entry.expenses,
-        net: entry.income - entry.expenses,
+        net: Math.round((entry.income - entry.expenses) * 100) / 100,
         transactionCount: entry.transactionCount,
       };
     });
 
-    res.json({ data });
+    res.json({ data, baseCurrency });
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Failed to fetch monthly report';
     res.status(500).json({ error: message });
@@ -100,28 +100,27 @@ router.get('/budget-summary', async (req: AuthRequest, res: Response) => {
     const startDate = new Date(year, month - 1, 1);
     const endDate = new Date(year, month, 1);
 
-    const user = await UserModel.findById(req.userId).lean();
-    const budgets = user?.budgets || [];
-
-    const spendingRows = await ExpenseModel.aggregate([
-      {
-        $match: {
-          owner: req.userId,
-          type: 'expense',
-          date: { $gte: startDate, $lt: endDate },
-        },
-      },
-      {
-        $group: {
-          _id: '$category',
-          spent: { $sum: '$amount' },
-        },
-      },
+    const [userResult2, ratesResult2] = await Promise.allSettled([
+      UserModel.findById(req.userId).lean(),
+      getExchangeRates('USD'),
     ]);
+    const user = userResult2.status === 'fulfilled' ? userResult2.value : null;
+    const ratesData2 = ratesResult2.status === 'fulfilled' ? ratesResult2.value : { rates: { USD: 1 } as Record<string, number> };
+    const budgets = user?.budgets || [];
+    const baseCurrency = user?.baseCurrency || 'USD';
+
+    const expenses = await ExpenseModel.find({
+      owner: req.userId,
+      type: 'expense',
+      date: { $gte: startDate, $lt: endDate },
+    }).select('category amount currency').lean();
 
     const spendingMap = new Map<string, number>();
-    for (const row of spendingRows) {
-      spendingMap.set(row._id || 'Uncategorised', row.spent);
+    for (const expense of expenses) {
+      const expCurrency = expense.currency || baseCurrency;
+      const converted = convertCurrency(expense.amount, expCurrency, baseCurrency, ratesData2.rates);
+      const cat = expense.category || 'Uncategorised';
+      spendingMap.set(cat, (spendingMap.get(cat) ?? 0) + converted);
     }
 
     const categories = new Set<string>();
@@ -146,7 +145,7 @@ router.get('/budget-summary', async (req: AuthRequest, res: Response) => {
     const totalSpent = data.reduce((sum, d) => sum + d.spent, 0);
     const totalRemaining = totalBudgeted - totalSpent;
 
-    res.json({ data, totalBudgeted, totalSpent, totalRemaining });
+    res.json({ data, totalBudgeted, totalSpent, totalRemaining, baseCurrency });
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Failed to fetch budget summary';
     res.status(500).json({ error: message });

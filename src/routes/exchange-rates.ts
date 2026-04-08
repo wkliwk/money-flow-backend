@@ -6,10 +6,11 @@ const router = Router();
 
 router.use(protect);
 
-// GET /api/exchange-rates
-router.get('/', async (_req: AuthRequest, res: Response) => {
+// GET /api/exchange-rates?base=USD
+router.get('/', async (req: AuthRequest, res: Response) => {
   try {
-    const data = await getExchangeRates();
+    const base = ((req.query.base as string) || 'USD').toUpperCase();
+    const data = await getExchangeRates(base);
     res.json(data);
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Failed to fetch exchange rates';

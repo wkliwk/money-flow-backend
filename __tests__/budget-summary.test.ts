@@ -23,6 +23,8 @@ beforeAll(async () => {
 
   const user = await UserModel.findOne({ email: 'budget@test.com' });
   userId = user!._id.toString();
+  // Set baseCurrency to HKD so test expenses (schema default HKD) aren't converted
+  await UserModel.findByIdAndUpdate(userId, { baseCurrency: 'HKD' });
 });
 
 afterAll(async () => {

@@ -23,7 +23,7 @@ router.post(
       .isLength({ max: 10 })
       .withMessage('locale must be at most 10 characters'),
   ],
-  (req: AuthRequest, res: Response): void => {
+  async (req: AuthRequest, res: Response): Promise<void> => {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
       res.status(400).json({ errors: errors.array() });
@@ -33,7 +33,7 @@ router.post(
     const { text, locale } = req.body as { text: string; locale?: string };
 
     try {
-      const parsed = parseTransactionText(text, locale);
+      const parsed = await parseTransactionText(text, locale);
       res.json(parsed);
     } catch {
       res.status(500).json({ error: 'Failed to parse transaction text' });

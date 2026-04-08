@@ -4,7 +4,11 @@
  * Ported from money-flow-mobile/lib/parse-quick-expense.ts and enhanced
  * with participant detection, date parsing, split-bill support, and
  * Cantonese/Chinese patterns.
+ *
+ * Hybrid approach: regex first, AI fallback when confidence < 0.7.
  */
+
+import { aiParseTransaction } from './aiParseTransaction';
 
 export interface ParsedTransaction {
   merchant?: string;
@@ -17,6 +21,8 @@ export interface ParsedTransaction {
   notes?: string;
   confidence?: number;
   missing_fields?: string[];
+  type?: 'expense' | 'income';
+  source?: 'regex' | 'ai';
 }
 
 // ── Category keyword map ────────────────────────────────────────────────
@@ -226,7 +232,7 @@ function extractAmount(text: string): { amount: number | undefined; currency: st
 
 // ── Main parser ─────────────────────────────────────────────────────────
 
-export function parseTransactionText(text: string, _locale?: string): ParsedTransaction {
+export function regexParseTransaction(text: string, _locale?: string): ParsedTransaction {
   const trimmed = text.trim();
   if (!trimmed) {
     return {
@@ -297,4 +303,79 @@ export function parseTransactionText(text: string, _locale?: string): ParsedTran
   }
 
   return result;
+}
+
+// ── Hybrid parser: regex first, AI fallback ─────────────────────────────
+
+const CRITICAL_MISSING_FIELDS = ['amount', 'merchant'];
+
+function needsAIFallback(regexResult: ParsedTransaction): boolean {
+  if ((regexResult.confidence ?? 0) < 0.7) return true;
+  const missing = regexResult.missing_fields ?? [];
+  return CRITICAL_MISSING_FIELDS.some((f) => missing.includes(f));
+}
+
+export async function parseTransactionText(
+  text: string,
+  locale?: string,
+): Promise<ParsedTransaction> {
+  const regexResult = regexParseTransaction(text, locale);
+  regexResult.source = 'regex';
+
+  if (!needsAIFallback(regexResult)) {
+    return regexResult;
+  }
+
+  // AI fallback
+  try {
+    const aiResult = await aiParseTransaction(text);
+
+    // Merge: AI fills gaps, regex values take priority when present
+    const merged: ParsedTransaction = { ...regexResult };
+    merged.source = 'ai';
+
+    if (aiResult.description && !merged.merchant) {
+      merged.merchant = aiResult.description;
+    }
+
+    // Only use AI amount if regex had none — never let AI hallucinate amounts
+    if (aiResult.amount !== null && merged.amount === undefined) {
+      merged.amount = aiResult.amount;
+    }
+
+    if (aiResult.category && !merged.category) {
+      merged.category = aiResult.category;
+    }
+
+    if (aiResult.date && !merged.date) {
+      merged.date = aiResult.date;
+    }
+
+    if (aiResult.participants && (!merged.participants || merged.participants.length === 0)) {
+      merged.participants = aiResult.participants;
+    }
+
+    if (aiResult.type) {
+      merged.type = aiResult.type;
+    }
+
+    if (aiResult.notes && !merged.notes) {
+      merged.notes = aiResult.notes;
+    }
+
+    // Recalculate missing fields after merge
+    const stillMissing: string[] = [];
+    if (merged.amount === undefined) stillMissing.push('amount');
+    if (!merged.merchant) stillMissing.push('merchant');
+    merged.missing_fields = stillMissing.length > 0 ? stillMissing : undefined;
+
+    // Bump confidence if AI provided useful data
+    const aiBoost = (aiResult.category ? 0.15 : 0) + (aiResult.date ? 0.1 : 0) + (aiResult.description ? 0.1 : 0);
+    merged.confidence = Math.min((regexResult.confidence ?? 0) + aiBoost, 1);
+
+    return merged;
+  } catch {
+    // Graceful degradation: return regex result if AI fails
+    return regexResult;
+  }
 }

@@ -1,8 +1,10 @@
 import { Router, Response } from 'express';
 import { body, validationResult } from 'express-validator';
 import { compareTwoStrings } from 'string-similarity';
+import mongoose from 'mongoose';
 import ExpenseModel, { PAYMENT_METHODS, SUPPORTED_CURRENCIES } from '../models/Expense';
 import UserModel from '../models/User';
+import TagModel from '../models/Tag';
 import { protect, AuthRequest } from '../middleware/auth';
 import { checkAndQueueBudgetAlerts } from '../utils/alerts';
 
@@ -248,6 +250,15 @@ router.get('/', async (req: AuthRequest, res: Response) => {
       filter.paymentMethod = paymentMethodQuery;
     }
 
+    const tagQuery = req.query.tag as string | undefined;
+    if (tagQuery) {
+      if (!mongoose.Types.ObjectId.isValid(tagQuery)) {
+        res.status(400).json({ error: 'Invalid tag ID format' });
+        return;
+      }
+      filter.tags = tagQuery;
+    }
+
     const allowedSortFields = ['createdAt', 'amount', 'date'];
     const sortField = allowedSortFields.includes(req.query.sort as string)
       ? (req.query.sort as string)
@@ -352,8 +363,22 @@ router.post('/', expenseValidation, async (req: AuthRequest, res: Response) => {
   }
 });
 
+const tagsValidation = body('tags')
+  .optional()
+  .custom((value: unknown) => {
+    if (value === undefined || value === null) return true;
+    if (!Array.isArray(value)) throw new Error('tags must be an array');
+    if (value.length > 10) throw new Error('Maximum of 10 tags per transaction');
+    for (const id of value) {
+      if (typeof id !== 'string' || !mongoose.Types.ObjectId.isValid(id)) {
+        throw new Error(`Invalid tag ID: ${id}`);
+      }
+    }
+    return true;
+  });
+
 // PUT /api/expenses/:id
-router.put('/:id', expenseValidation, async (req: AuthRequest, res: Response) => {
+router.put('/:id', [...expenseValidation, tagsValidation], async (req: AuthRequest, res: Response) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
     res.status(400).json({ error: errors.array()[0].msg });
@@ -365,7 +390,7 @@ router.put('/:id', expenseValidation, async (req: AuthRequest, res: Response) =>
       res.status(404).json({ error: 'Expense not found' });
       return;
     }
-    const { description, amount, type, category, item, date, participants, paymentMethod, currency, originalAmount, exchangeRate, splitBill } = req.body;
+    const { description, amount, type, category, item, date, participants, paymentMethod, currency, originalAmount, exchangeRate, splitBill, tags } = req.body;
     expense.description = description;
     expense.amount = amount;
     expense.type = type;
@@ -378,6 +403,23 @@ router.put('/:id', expenseValidation, async (req: AuthRequest, res: Response) =>
     if (originalAmount !== undefined) expense.originalAmount = originalAmount;
     if (exchangeRate !== undefined) expense.exchangeRate = exchangeRate;
     expense.splitBill = splitBill !== undefined ? splitBill : false;
+
+    if (tags !== undefined) {
+      // Verify all tag IDs belong to the user
+      const tagIds: string[] = Array.isArray(tags) ? tags : [];
+      if (tagIds.length > 0) {
+        const ownedTags = await TagModel.countDocuments({
+          _id: { $in: tagIds },
+          owner: req.userId,
+        });
+        if (ownedTags !== tagIds.length) {
+          res.status(400).json({ error: 'One or more tag IDs are invalid or do not belong to you' });
+          return;
+        }
+      }
+      expense.tags = tagIds.map((id) => new mongoose.Types.ObjectId(id));
+    }
+
     await expense.save();
     res.json(expense.toObject());
   } catch (err) {

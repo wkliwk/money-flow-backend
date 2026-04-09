@@ -42,6 +42,7 @@ interface IExpense extends Document {
   exchangeRate?: number | null;
   paymentMethod?: PaymentMethod | null;
   splitBill?: boolean | string;
+  tags?: mongoose.Types.ObjectId[];
   createdAt?: Date;
   updatedAt?: Date;
 }
@@ -76,6 +77,7 @@ const ExpenseSchema = new mongoose.Schema(
       default: null,
     },
     splitBill: { type: mongoose.Schema.Types.Mixed, default: false },
+    tags: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Tag', default: [] }],
   },
   { timestamps: true }
 );
@@ -83,6 +85,7 @@ const ExpenseSchema = new mongoose.Schema(
 ExpenseSchema.index({ owner: 1, date: -1 });
 ExpenseSchema.index({ owner: 1, _id: 1 });
 ExpenseSchema.index({ owner: 1, category: 1, date: -1 }); // budget + report queries filtered by category
+ExpenseSchema.index({ owner: 1, tags: 1 }); // tag filter queries
 
 export { PAYMENT_METHODS, SUPPORTED_CURRENCIES };
 export type { SupportedCurrency };

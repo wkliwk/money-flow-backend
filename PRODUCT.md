@@ -215,6 +215,62 @@
 
 ---
 
+### 12a. Transaction Tags
+
+**Description:** Custom user-defined tags for cross-cutting expense organization (e.g. `business`, `client-alpha`, `reimbursable`). Complements categories.
+
+**Endpoints:**
+- `GET /api/tags` — list all tags for the user
+- `POST /api/tags` — create tag (`name`, optional `color` hex)
+- `PUT /api/tags/:id` — rename or recolor a tag
+- `DELETE /api/tags/:id` — delete tag (also unlinks from expenses)
+- Tags filter on `GET /api/expenses?tags=...`
+- Tag CRUD on `PUT /api/expenses/:id` (tag IDs array)
+
+**Acceptance criteria:**
+- [ ] Each user has independent tag namespace (max 50 tags/user)
+- [ ] Tag names case-insensitive unique per user
+- [ ] Hex color validation `^#[0-9A-Fa-f]{6}$`
+- [ ] Max 10 tags per transaction
+- [ ] Deleting a tag unlinks it from all expenses (no cascade delete of expenses)
+
+---
+
+### 12b. Savings Goals
+
+**Description:** Track progress toward named savings targets (e.g. "Vacation $2000 by Aug 2026").
+
+**Endpoints:**
+- `GET /api/goals` — list all goals for user
+- `POST /api/goals` — create (name, targetAmount, targetDate)
+- `GET /api/goals/:id` — single goal with contribution history
+- `PUT /api/goals/:id` — update target/name/date
+- `DELETE /api/goals/:id` — delete
+- `POST /api/goals/:id/contributions` — add manual contribution
+
+**Acceptance criteria:**
+- [ ] Goal stores: name, targetAmount, targetDate, currentAmount, contributions[]
+- [ ] Contributions append-only, dated
+- [ ] Owner-scoped (cannot read/modify other users' goals)
+
+---
+
+### 13a. Push Notifications
+
+**Description:** Backend support for Expo push notifications — register tokens, store user preferences, schedule alerts.
+
+**Endpoints:**
+- `POST /api/notifications/register` — store Expo push token + preferences
+- `DELETE /api/notifications/register` — unregister
+- Background jobs trigger budget alerts (80%/100%), weekly summary, unusual spending detection
+
+**Acceptance criteria:**
+- [ ] Token stored per user, replaced on re-register
+- [ ] Preferences: budgetAlerts, weeklySummary, unusualSpending (booleans)
+- [ ] Notifications respect user prefs (no send if disabled)
+
+---
+
 ### 13. Insights & Weekly Pulse
 
 **Description:** AI-generated spending insights and weekly summary reports.
@@ -277,16 +333,51 @@
 
 ---
 
-### 17. Exchange Rates
+### 17. Exchange Rates & Multi-Currency
 
-**Description:** Currency exchange rate data for multi-currency support.
+**Description:** Multi-currency support — every user has a `baseCurrency`; expenses can be in any currency and are converted to base for summaries/reports.
 
 **Endpoints:**
-- `GET /exchange-rates` — current rates
+- `GET /api/exchange-rates` — current rates (cached)
+- Conversion happens server-side in summary/report endpoints
+- User profile (`/users/me`) carries `baseCurrency`
 
 **Acceptance criteria:**
-- [ ] Returns current exchange rates
-- [ ] Supports common currencies
+- [ ] Each user has a `baseCurrency` setting
+- [ ] Expenses store original `amount` + `currency`
+- [ ] Summaries (`/budgets/summary`, `/reports/monthly`, etc.) return base-currency totals
+- [ ] Exchange rate cache invalidates daily
+
+---
+
+### 18. NLP Quick-Entry API
+
+**Description:** Parse free-text expense descriptions into structured transaction data. Supports English and CJK (Chinese, Japanese, Korean).
+
+**Endpoints:**
+- `POST /api/transactions/parse-text` — input: `{ text: "lunch 12.50 at subway" }` → output: structured expense draft
+
+**Acceptance criteria:**
+- [ ] Extracts amount, description, category from free text
+- [ ] Handles CJK-adjacent amounts (e.g. `每人$65`)
+- [ ] Falls back to AI (LLM) when rule-based parser is uncertain
+- [ ] Categories include Gifts, Food, Transport, Shopping, etc.
+
+---
+
+### 19. Account Security
+
+**Description:** Account-level operations beyond auth — password change, account deletion with cascade.
+
+**Endpoints:**
+- `PATCH /api/users/password` — change password (email/password users only)
+- `DELETE /api/auth/account` — delete account + cascade all user data
+- Auth endpoints rate-limited to prevent brute-force
+
+**Acceptance criteria:**
+- [ ] Password change requires current password verification
+- [ ] Account deletion removes: expenses, budgets, goals, tags, accounts, friends, notifications
+- [ ] Auth rate limit: 5 failed attempts → 15-minute lockout
 
 ---
 

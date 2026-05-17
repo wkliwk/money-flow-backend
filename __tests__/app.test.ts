@@ -25,10 +25,29 @@ describe('GET /health', () => {
 describe('App bootstrap', () => {
   it('sets up CORS middleware correctly', async () => {
     const res = await request(app)
-      .get('/health');
+      .get('/health')
+      .set('Origin', 'http://localhost:3000');
 
     expect(res.status).toBe(200);
-    expect(res.headers['access-control-allow-origin']).toBeDefined();
+    expect(res.headers['access-control-allow-origin']).toBe('http://localhost:3000');
+  });
+
+  it('blocks unknown origins', async () => {
+    const res = await request(app)
+      .options('/health')
+      .set('Origin', 'https://evil.example.com')
+      .set('Access-Control-Request-Method', 'GET');
+
+    expect(res.status).toBe(500);
+  });
+
+  it('allows localhost:3002 for local dev', async () => {
+    const res = await request(app)
+      .get('/health')
+      .set('Origin', 'http://localhost:3002');
+
+    expect(res.status).toBe(200);
+    expect(res.headers['access-control-allow-origin']).toBe('http://localhost:3002');
   });
 
   it('sets up express.json() middleware', async () => {

@@ -39,8 +39,20 @@ const app = express();
 const PORT = process.env.PORT || 3001;
 const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/money-flow';
 
+const DEV_ORIGINS = ['http://localhost:3000', 'http://localhost:3002'];
+const allowedOrigins = new Set<string>([
+  ...DEV_ORIGINS,
+  ...(process.env.FRONTEND_URL ?? '')
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean),
+]);
+
 app.use(cors({
-  origin: process.env.FRONTEND_URL || 'http://localhost:3000',
+  origin: (origin, cb) => {
+    if (!origin || allowedOrigins.has(origin)) return cb(null, true);
+    cb(new Error(`CORS: origin ${origin} not allowed`));
+  },
   credentials: true,
 }));
 app.use(express.json());

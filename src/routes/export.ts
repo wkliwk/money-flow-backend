@@ -135,8 +135,8 @@ router.get('/csv', async (req: AuthRequest, res) => {
     res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
     res.send(csv);
   } catch (err) {
-    const message = err instanceof Error ? err.message : 'Failed to export CSV';
-    res.status(500).json({ error: message });
+    console.error('GET /api/export/csv failed:', err);
+    res.status(500).json({ error: 'Failed to export CSV' });
   }
 });
 

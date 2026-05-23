@@ -21,8 +21,8 @@ router.get('/', async (req: AuthRequest, res: Response) => {
 
     res.json(snapshots);
   } catch (err) {
-    const message = err instanceof Error ? err.message : 'Failed to fetch net worth snapshots';
-    res.status(500).json({ error: message });
+    console.error('GET /api/net-worth failed:', err);
+    res.status(500).json({ error: 'Failed to fetch net worth snapshots' });
   }
 });
 
@@ -32,8 +32,8 @@ router.get('/latest', async (req: AuthRequest, res: Response) => {
     const snapshot = await NetWorthModel.findOne({ userId: req.userId }).sort({ date: -1 });
     res.json(snapshot || null);
   } catch (err) {
-    const message = err instanceof Error ? err.message : 'Failed to fetch latest snapshot';
-    res.status(500).json({ error: message });
+    console.error('GET /api/net-worth/latest failed:', err);
+    res.status(500).json({ error: 'Failed to fetch latest snapshot' });
   }
 });
 
@@ -70,8 +70,8 @@ router.post('/', validation, async (req: AuthRequest, res: Response) => {
 
     res.status(201).json(snapshot);
   } catch (err) {
-    const message = err instanceof Error ? err.message : 'Failed to save net worth snapshot';
-    res.status(400).json({ error: message });
+    console.error('POST /api/net-worth failed:', err);
+    res.status(400).json({ error: 'Failed to save net worth snapshot' });
   }
 });
 
@@ -96,8 +96,8 @@ router.put('/:snapshotId', validation, async (req: AuthRequest, res: Response) =
 
     res.json(snapshot);
   } catch (err) {
-    const message = err instanceof Error ? err.message : 'Failed to update snapshot';
-    res.status(400).json({ error: message });
+    console.error('PUT /api/net-worth/:snapshotId failed:', err);
+    res.status(400).json({ error: 'Failed to update snapshot' });
   }
 });
 
@@ -116,8 +116,8 @@ router.delete('/:snapshotId', async (req: AuthRequest, res: Response) => {
 
     res.json({ message: 'Deleted' });
   } catch (err) {
-    const message = err instanceof Error ? err.message : 'Failed to delete snapshot';
-    res.status(500).json({ error: message });
+    console.error('DELETE /api/net-worth/:snapshotId failed:', err);
+    res.status(500).json({ error: 'Failed to delete snapshot' });
   }
 });
 

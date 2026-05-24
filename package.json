@@ -1,6 +1,6 @@
 {
   "name": "money-flow-backend",
-  "version": "1.0.10",
+  "version": "1.0.11",
   "main": "dist/app.js",
   "repository": "https://github.com/wkliwk/money-flow-backend.git",
   "author": "rickyli <ricky.li@crypto.com>",

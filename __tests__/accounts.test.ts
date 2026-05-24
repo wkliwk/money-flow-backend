@@ -7,7 +7,6 @@ import { MongoMemoryServer } from 'mongodb-memory-server';
 import jwt from 'jsonwebtoken';
 import app from '../src/app';
 import AccountModel from '../src/models/Account';
-import ExpenseModel from '../src/models/Expense';
 
 let mongod: MongoMemoryServer;
 const TEST_USER_ID = 'user_test_accounts';
@@ -211,10 +210,7 @@ describe('PUT /api/accounts/:id', () => {
 });
 
 describe('DELETE /api/accounts/:id', () => {
-  it('deletes the account and reports unlinkedTransactions (always 0 — see open bug)', async () => {
-    // Route counts Expense.accountId matches but the Expense schema does not
-    // define accountId, so Mongoose strips it on write and the count is always 0.
-    // Documented behavior here; bug tracked separately.
+  it('deletes the account', async () => {
     const acc = await AccountModel.create({
       userId: TEST_USER_ID,
       name: 'A',
@@ -227,7 +223,7 @@ describe('DELETE /api/accounts/:id', () => {
       .set('Authorization', `Bearer ${authToken}`);
 
     expect(res.status).toBe(200);
-    expect(res.body).toEqual({ deleted: true, unlinkedTransactions: 0 });
+    expect(res.body).toEqual({ deleted: true });
     const found = await AccountModel.findById(acc._id);
     expect(found).toBeNull();
   });
@@ -260,25 +256,11 @@ describe('DELETE /api/accounts/:id', () => {
       type: 'cash',
       startingBalance: 0,
     });
-    jest.spyOn(ExpenseModel, 'countDocuments').mockRejectedValueOnce(new Error('db down'));
+    jest.spyOn(AccountModel, 'deleteOne').mockRejectedValueOnce(new Error('db down'));
     const res = await request(app)
       .delete(`/api/accounts/${acc._id}`)
       .set('Authorization', `Bearer ${authToken}`);
     expect(res.status).toBe(500);
-  });
-
-  it('reports 0 unlinked when no transactions link to the account', async () => {
-    const acc = await AccountModel.create({
-      userId: TEST_USER_ID,
-      name: 'A',
-      type: 'cash',
-      startingBalance: 0,
-    });
-    const res = await request(app)
-      .delete(`/api/accounts/${acc._id}`)
-      .set('Authorization', `Bearer ${authToken}`);
-    expect(res.status).toBe(200);
-    expect(res.body.unlinkedTransactions).toBe(0);
   });
 });
 

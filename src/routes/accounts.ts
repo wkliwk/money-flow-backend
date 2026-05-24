@@ -2,7 +2,6 @@ import { Router, Response } from 'express';
 import { body, validationResult } from 'express-validator';
 import { protect, AuthRequest } from '../middleware/auth';
 import AccountModel, { ACCOUNT_TYPES } from '../models/Account';
-import ExpenseModel from '../models/Expense';
 
 const router = Router();
 
@@ -110,18 +109,12 @@ router.delete('/:id', async (req: AuthRequest, res: Response) => {
       return;
     }
 
-    // Count transactions linked to this account
-    const linkedCount = await ExpenseModel.countDocuments({
-      owner: req.userId,
-      accountId: req.params.id,
-    });
-
     await AccountModel.deleteOne({ _id: req.params.id });
 
-    res.json({ deleted: true, unlinkedTransactions: linkedCount });
+    res.json({ deleted: true });
   } catch (err) {
-    const message = err instanceof Error ? err.message : 'Failed to delete account';
-    res.status(500).json({ error: message });
+    console.error('DELETE /api/accounts/:id failed:', err);
+    res.status(500).json({ error: 'Failed to delete account' });
   }
 });
 

@@ -32,12 +32,11 @@ jobs:
             print(0)
           ")
           echo "Line coverage: ${COVERAGE}%"
-          # Floor set to current actual coverage as of 2026-05-23; tracked to raise back to 85% in follow-up issue.
-          if [ "${COVERAGE}" -lt 75 ]; then
-            echo "Coverage ${COVERAGE}% is below the 75% floor."
+          if [ "${COVERAGE}" -lt 85 ]; then
+            echo "Coverage ${COVERAGE}% is below the 85% baseline."
             exit 1
           fi
-          echo "Coverage ${COVERAGE}% meets 75% floor."
+          echo "Coverage ${COVERAGE}% meets 85% baseline."
       - name: TypeScript compile
         run: yarn build
       - name: Deploy to Railway

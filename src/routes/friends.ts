@@ -69,8 +69,8 @@ router.post(
 
       res.status(201).json({ id: friendship._id, status: 'pending', email });
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Failed to send friend request';
-      res.status(500).json({ error: message });
+      console.error('friends.ts:1 failed:', err);
+      res.status(500).json({ error: 'Failed to send friend request' });
     }
   }
 );
@@ -99,8 +99,8 @@ router.get('/', async (req: AuthRequest, res: Response) => {
 
     res.json({ friends });
   } catch (err) {
-    const message = err instanceof Error ? err.message : 'Failed to fetch friends';
-    res.status(500).json({ error: message });
+    console.error('friends.ts:2 failed:', err);
+    res.status(500).json({ error: 'Failed to fetch friends' });
   }
 });
 
@@ -124,8 +124,8 @@ router.get('/pending', async (req: AuthRequest, res: Response) => {
 
     res.json({ requests });
   } catch (err) {
-    const message = err instanceof Error ? err.message : 'Failed to fetch pending requests';
-    res.status(500).json({ error: message });
+    console.error('friends.ts:3 failed:', err);
+    res.status(500).json({ error: 'Failed to fetch pending requests' });
   }
 });
 
@@ -147,8 +147,8 @@ router.post('/:id/accept', async (req: AuthRequest, res: Response) => {
     await friendship.save();
     res.json({ status: 'accepted' });
   } catch (err) {
-    const message = err instanceof Error ? err.message : 'Failed to accept request';
-    res.status(500).json({ error: message });
+    console.error('friends.ts:4 failed:', err);
+    res.status(500).json({ error: 'Failed to accept request' });
   }
 });
 
@@ -169,8 +169,8 @@ router.post('/:id/reject', async (req: AuthRequest, res: Response) => {
     await friendship.deleteOne();
     res.json({ status: 'removed' });
   } catch (err) {
-    const message = err instanceof Error ? err.message : 'Failed to reject request';
-    res.status(500).json({ error: message });
+    console.error('friends.ts:5 failed:', err);
+    res.status(500).json({ error: 'Failed to reject request' });
   }
 });
 
@@ -191,8 +191,8 @@ router.delete('/:id', async (req: AuthRequest, res: Response) => {
     await friendship.deleteOne();
     res.json({ status: 'removed' });
   } catch (err) {
-    const message = err instanceof Error ? err.message : 'Failed to remove friend';
-    res.status(500).json({ error: message });
+    console.error('friends.ts:6 failed:', err);
+    res.status(500).json({ error: 'Failed to remove friend' });
   }
 });
 

@@ -26,8 +26,8 @@ router.get('/', async (req: AuthRequest, res: Response) => {
     });
     res.json({ templates });
   } catch (err) {
-    const message = err instanceof Error ? err.message : 'Failed to fetch templates';
-    res.status(500).json({ error: message });
+    console.error('templates.ts:1 failed:', err);
+    res.status(500).json({ error: 'Failed to fetch templates' });
   }
 });
 
@@ -73,8 +73,8 @@ router.get('/:id', async (req: AuthRequest, res: Response) => {
 
     res.json(template.toObject());
   } catch (err) {
-    const message = err instanceof Error ? err.message : 'Failed to fetch template';
-    res.status(500).json({ error: message });
+    console.error('templates.ts:2 failed:', err);
+    res.status(500).json({ error: 'Failed to fetch template' });
   }
 });
 
@@ -129,8 +129,8 @@ router.delete('/:id', async (req: AuthRequest, res: Response) => {
 
     res.json({ message: 'Template deleted' });
   } catch (err) {
-    const message = err instanceof Error ? err.message : 'Failed to delete template';
-    res.status(500).json({ error: message });
+    console.error('templates.ts:3 failed:', err);
+    res.status(500).json({ error: 'Failed to delete template' });
   }
 });
 

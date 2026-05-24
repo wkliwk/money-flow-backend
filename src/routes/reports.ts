@@ -74,8 +74,8 @@ router.get('/monthly', async (req: AuthRequest, res: Response) => {
 
     res.json({ data, baseCurrency });
   } catch (err) {
-    const message = err instanceof Error ? err.message : 'Failed to fetch monthly report';
-    res.status(500).json({ error: message });
+    console.error('reports.ts:1 failed:', err);
+    res.status(500).json({ error: 'Failed to fetch monthly report' });
   }
 });
 
@@ -147,8 +147,8 @@ router.get('/budget-summary', async (req: AuthRequest, res: Response) => {
 
     res.json({ data, totalBudgeted, totalSpent, totalRemaining, baseCurrency });
   } catch (err) {
-    const message = err instanceof Error ? err.message : 'Failed to fetch budget summary';
-    res.status(500).json({ error: message });
+    console.error('reports.ts:2 failed:', err);
+    res.status(500).json({ error: 'Failed to fetch budget summary' });
   }
 });
 
@@ -160,8 +160,8 @@ router.post('/weekly-digest', async (req: AuthRequest, res: Response) => {
     const sent = await sendWeeklyDigestForUser(userId);
     res.json({ sent, digest: data, message });
   } catch (err) {
-    const message = err instanceof Error ? err.message : 'Failed to generate weekly digest';
-    res.status(500).json({ error: message });
+    console.error('reports.ts:3 failed:', err);
+    res.status(500).json({ error: 'Failed to generate weekly digest' });
   }
 });
 

@@ -30,8 +30,8 @@ router.get('/', async (req: AuthRequest, res: Response) => {
     const tags = await TagModel.find({ owner: req.userId }).sort({ name: 1 }).lean();
     res.json(tags);
   } catch (err) {
-    const message = err instanceof Error ? err.message : 'Failed to fetch tags';
-    res.status(500).json({ error: message });
+    console.error('tags.ts:1 failed:', err);
+    res.status(500).json({ error: 'Failed to fetch tags' });
   }
 });
 
@@ -67,8 +67,8 @@ router.post('/', [nameValidation, colorValidation], async (req: AuthRequest, res
     const tag = await TagModel.create({ name, color, owner: req.userId });
     res.status(201).json(tag);
   } catch (err) {
-    const message = err instanceof Error ? err.message : 'Failed to create tag';
-    res.status(400).json({ error: message });
+    console.error('tags.ts:2 failed:', err);
+    res.status(400).json({ error: 'Failed to create tag' });
   }
 });
 
@@ -112,8 +112,8 @@ router.put('/:id', [nameValidation, colorValidation], async (req: AuthRequest, r
     await tag.save();
     res.json(tag.toObject());
   } catch (err) {
-    const message = err instanceof Error ? err.message : 'Failed to update tag';
-    res.status(400).json({ error: message });
+    console.error('tags.ts:3 failed:', err);
+    res.status(400).json({ error: 'Failed to update tag' });
   }
 });
 
@@ -142,8 +142,8 @@ router.delete('/:id', async (req: AuthRequest, res: Response) => {
 
     res.json({ message: 'Tag deleted' });
   } catch (err) {
-    const message = err instanceof Error ? err.message : 'Failed to delete tag';
-    res.status(500).json({ error: message });
+    console.error('tags.ts:4 failed:', err);
+    res.status(500).json({ error: 'Failed to delete tag' });
   }
 });
 

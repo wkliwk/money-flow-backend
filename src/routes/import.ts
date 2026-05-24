@@ -349,8 +349,8 @@ router.post('/statement', statementUpload.single('file'), async (req: AuthReques
     const { matched, missing, discrepancies } = await reconcile(req.userId!, extracted);
     res.json({ extracted, matched, missing, discrepancies });
   } catch (err) {
-    const msg = err instanceof Error ? err.message : 'Scan failed';
-    res.status(500).json({ error: msg });
+    console.error('import.ts:scan failed:', err);
+    res.status(500).json({ error: 'Scan failed' });
   }
 });
 

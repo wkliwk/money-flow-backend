@@ -15,8 +15,8 @@ router.get('/', async (req: AuthRequest, res: Response) => {
       .lean();
     res.json({ goals });
   } catch (err) {
-    const message = err instanceof Error ? err.message : 'Failed to fetch goals';
-    res.status(500).json({ error: message });
+    console.error('goals.ts:1 failed:', err);
+    res.status(500).json({ error: 'Failed to fetch goals' });
   }
 });
 
@@ -66,8 +66,8 @@ router.post(
       });
       res.status(201).json({ goal });
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Failed to create goal';
-      res.status(500).json({ error: message });
+      console.error('goals.ts:2 failed:', err);
+      res.status(500).json({ error: 'Failed to create goal' });
     }
   }
 );
@@ -112,8 +112,8 @@ router.put(
       }
       res.json({ goal });
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Failed to update goal';
-      res.status(500).json({ error: message });
+      console.error('goals.ts:3 failed:', err);
+      res.status(500).json({ error: 'Failed to update goal' });
     }
   }
 );
@@ -131,8 +131,8 @@ router.delete('/:id', async (req: AuthRequest, res: Response) => {
     }
     res.json({ deleted: true });
   } catch (err) {
-    const message = err instanceof Error ? err.message : 'Failed to delete goal';
-    res.status(500).json({ error: message });
+    console.error('goals.ts:4 failed:', err);
+    res.status(500).json({ error: 'Failed to delete goal' });
   }
 });
 

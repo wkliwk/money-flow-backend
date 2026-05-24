@@ -17,8 +17,8 @@ router.get('/me', async (req: AuthRequest, res: Response) => {
     }
     res.json({ user });
   } catch (err) {
-    const message = err instanceof Error ? err.message : 'Failed to fetch user';
-    res.status(500).json({ error: message });
+    console.error('users.ts:1 failed:', err);
+    res.status(500).json({ error: 'Failed to fetch user' });
   }
 });
 
@@ -57,8 +57,8 @@ router.patch(
 
       res.json({ user });
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Failed to update profile';
-      res.status(500).json({ error: message });
+      console.error('users.ts:2 failed:', err);
+      res.status(500).json({ error: 'Failed to update profile' });
     }
   }
 );
@@ -96,8 +96,8 @@ router.patch(
 
       res.json({ user });
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Failed to update preferences';
-      res.status(500).json({ error: message });
+      console.error('users.ts:3 failed:', err);
+      res.status(500).json({ error: 'Failed to update preferences' });
     }
   }
 );
@@ -148,8 +148,8 @@ router.patch(
 
       res.json({ message: 'Password updated' });
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Failed to update password';
-      res.status(500).json({ error: message });
+      console.error('users.ts:4 failed:', err);
+      res.status(500).json({ error: 'Failed to update password' });
     }
   }
 );

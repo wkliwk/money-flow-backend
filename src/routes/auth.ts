@@ -80,8 +80,8 @@ router.post(
       const token = signToken(user.id as string);
       res.status(201).json({ token });
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Registration failed';
-      res.status(500).json({ error: message });
+      console.error('auth.ts:1 failed:', err);
+      res.status(500).json({ error: 'Registration failed' });
     }
   }
 );
@@ -111,8 +111,8 @@ router.post(
       const token = signToken(user.id as string);
       res.json({ token });
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Login failed';
-      res.status(500).json({ error: message });
+      console.error('auth.ts:2 failed:', err);
+      res.status(500).json({ error: 'Login failed' });
     }
   }
 );
@@ -172,8 +172,8 @@ router.post(
       const token = signToken(user.id as string);
       res.json({ token });
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Google authentication failed';
-      res.status(401).json({ error: message });
+      console.error('auth.ts:3 failed:', err);
+      res.status(401).json({ error: 'Google authentication failed' });
     }
   }
 );
@@ -227,8 +227,8 @@ router.post(
       const token = signToken(user.id as string);
       res.json({ token });
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Apple authentication failed';
-      res.status(401).json({ error: message });
+      console.error('auth.ts:4 failed:', err);
+      res.status(401).json({ error: 'Apple authentication failed' });
     }
   }
 );
@@ -292,8 +292,8 @@ router.delete(
 
       res.json({ message: 'Account and all data deleted' });
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Account deletion failed';
-      res.status(500).json({ error: message });
+      console.error('auth.ts:5 failed:', err);
+      res.status(500).json({ error: 'Account deletion failed' });
     }
   }
 );

@@ -97,8 +97,8 @@ router.get('/last-amounts', async (req: AuthRequest, res: Response) => {
     }
     res.json(map);
   } catch (err) {
-    const message = err instanceof Error ? err.message : 'Failed to fetch last amounts';
-    res.status(500).json({ error: message });
+    console.error('expenses.ts:1 failed:', err);
+    res.status(500).json({ error: 'Failed to fetch last amounts' });
   }
 });
 
@@ -131,8 +131,8 @@ router.get('/price-history/:item', async (req: AuthRequest, res: Response) => {
 
     res.json({ item: itemName, history: results, stats });
   } catch (err) {
-    const message = err instanceof Error ? err.message : 'Failed to fetch price history';
-    res.status(500).json({ error: message });
+    console.error('expenses.ts:2 failed:', err);
+    res.status(500).json({ error: 'Failed to fetch price history' });
   }
 });
 
@@ -228,8 +228,8 @@ router.get('/analytics', async (req: AuthRequest, res: Response) => {
 
     res.json({ totalIncome, totalExpense, netBalance, categoryBreakdown, dailyTotals });
   } catch (err) {
-    const message = err instanceof Error ? err.message : 'Failed to fetch analytics';
-    res.status(500).json({ error: message });
+    console.error('expenses.ts:3 failed:', err);
+    res.status(500).json({ error: 'Failed to fetch analytics' });
   }
 });
 
@@ -284,8 +284,8 @@ router.get('/', async (req: AuthRequest, res: Response) => {
       total, page, pages: totalPages,
     });
   } catch (err) {
-    const message = err instanceof Error ? err.message : 'Failed to fetch expenses';
-    res.status(500).json({ error: message });
+    console.error('expenses.ts:4 failed:', err);
+    res.status(500).json({ error: 'Failed to fetch expenses' });
   }
 });
 
@@ -299,8 +299,8 @@ router.get('/:id', async (req: AuthRequest, res: Response) => {
     }
     res.json(expense);
   } catch (err) {
-    const message = err instanceof Error ? err.message : 'Failed to fetch expense';
-    res.status(500).json({ error: message });
+    console.error('expenses.ts:5 failed:', err);
+    res.status(500).json({ error: 'Failed to fetch expense' });
   }
 });
 
@@ -358,8 +358,8 @@ router.post('/', expenseValidation, async (req: AuthRequest, res: Response) => {
       });
     }
   } catch (err) {
-    const message = err instanceof Error ? err.message : 'Failed to create expense';
-    res.status(400).json({ error: message });
+    console.error('expenses.ts:6 failed:', err);
+    res.status(400).json({ error: 'Failed to create expense' });
   }
 });
 
@@ -423,8 +423,8 @@ router.put('/:id', [...expenseValidation, tagsValidation], async (req: AuthReque
     await expense.save();
     res.json(expense.toObject());
   } catch (err) {
-    const message = err instanceof Error ? err.message : 'Failed to update expense';
-    res.status(400).json({ error: message });
+    console.error('expenses.ts:7 failed:', err);
+    res.status(400).json({ error: 'Failed to update expense' });
   }
 });
 
@@ -438,8 +438,8 @@ router.delete('/:id', async (req: AuthRequest, res: Response) => {
     }
     res.json({ message: 'Deleted' });
   } catch (err) {
-    const message = err instanceof Error ? err.message : 'Failed to delete expense';
-    res.status(500).json({ error: message });
+    console.error('expenses.ts:8 failed:', err);
+    res.status(500).json({ error: 'Failed to delete expense' });
   }
 });
 

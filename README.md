@@ -66,7 +66,7 @@ Sentry is wired up via `src/instrument.ts` and activates when `SENTRY_DSN` is se
 **Setup:**
 1. Create a Node.js project at [sentry.io](https://sentry.io)
 2. Copy the DSN from Project Settings > Client Keys
-3. Add `SENTRY_DSN` to Railway environment variables
+3. Add `SENTRY_DSN` as a Fly secret (`flyctl secrets set SENTRY_DSN=… -a money-flow-backend`)
 4. Deploy and hit `GET /debug-sentry` to trigger a test error
 5. Confirm the error appears in the Sentry dashboard
 6. Remove or restrict `/debug-sentry` once verified (it is unprotected)
@@ -84,7 +84,7 @@ The `/health` endpoint returns `{"status":"ok"}` and is used for uptime monitori
 1. Sign up at [uptimerobot.com](https://uptimerobot.com) (free, no card needed)
 2. Add a new monitor:
    - Type: **HTTPS**
-   - URL: `https://money-flow-backend-production.up.railway.app/health`
+   - URL: `https://money-flow-backend.fly.dev/health`
    - Interval: **5 minutes**
    - Alert contact: your email or Telegram
 3. Optionally add `/api/health` as a second monitor (checks DB connectivity too)

@@ -40,21 +40,13 @@ jobs:
           echo "Coverage ${COVERAGE}% meets 75% floor."
       - name: TypeScript compile
         run: yarn build
-      - name: Deploy to Railway
-        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-        continue-on-error: true
-        run: |
-          npm install -g @railway/cli
-          railway up --detach
-        env:
-          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
       - name: Notify Telegram on success
         if: success()
         continue-on-error: true
         run: |
           curl -sf -X POST "https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendMessage" \
             -d chat_id="${{ secrets.TELEGRAM_CHAT_ID }}" \
-            -d text="CI passed + deployed: money-flow-backend (${{ github.ref_name }})" || true
+            -d text="CI passed: money-flow-backend (${{ github.ref_name }})" || true
       - name: Notify Telegram on failure
         if: failure()
         continue-on-error: true

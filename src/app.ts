@@ -26,6 +26,7 @@ import goalRoutes from './routes/goals';
 import transactionRoutes from './routes/transactions';
 import notificationRoutes from './routes/notifications';
 import tagRoutes from './routes/tags';
+import chatRoutes from './routes/chat';
 import { startAlertScheduler } from './jobs/processAlerts';
 import { startBudgetAlertPushScheduler } from './jobs/budgetAlertPush';
 import { startWeeklySummaryPushScheduler } from './jobs/weeklySummaryPush';
@@ -96,6 +97,7 @@ app.use('/api/goals', goalRoutes);
 app.use('/api/transactions', transactionRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/tags', tagRoutes);
+app.use('/api/chat', chatRoutes);
 
 Sentry.setupExpressErrorHandler(app);
 
